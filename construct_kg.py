@@ -19,7 +19,8 @@ def main(args):
     
     # For loop insert csv files into Neo4j
     for nodes_csv_file in nodes_csv_files:
-        neo4j_conn.load_csv_to_nodes(os.path.join(NODES_PATH, nodes_csv_file).replace("\\", "/"))
+        if nodes_csv_file.endswith(".csv"):
+            neo4j_conn.load_csv_to_nodes(os.path.join(NODES_PATH, nodes_csv_file).replace("\\", "/"))
 
     # List all csv files for relation from input directory
     rels_csv_files = os.listdir(REL_PATH)
