@@ -1,6 +1,5 @@
 import csv
 import os
-import json
 
 def get_header(path):
     with open(path, "r") as f:

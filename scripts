@@ -1,1 +1,1 @@
-python construct_kg.py --input_directory datasets/job_posting/preprocessed/nodes --neo4j_uri neo4j://localhost:7687 --neo4j_user neo4j --neo4j_password admin123
+python construct_kg.py --input_directory datasets/job_posting/preprocessed --neo4j_uri neo4j://localhost:7687 --neo4j_user neo4j --neo4j_password admin123
