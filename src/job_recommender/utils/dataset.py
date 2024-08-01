@@ -1,6 +1,8 @@
 import csv
 import os
 
+from sentence_transformers import SentenceTransformer
+
 def get_header(path):
     with open(path, "r") as f:
         dict_reader = csv.DictReader(f)
@@ -51,3 +53,8 @@ def create_match_statement(mapping):
     statement = "MATCH (h: {} {{id: row.h_id}}), (t: {} {{id: row.t_id}})".format(head_label, tail_label)
 
     return statement
+
+def get_emb_model(path):
+    model = SentenceTransformer(model_name_or_path=path)
+
+    return model
