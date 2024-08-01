@@ -10,7 +10,8 @@ def main(args):
     neo4j_conn = Neo4JConnection(
         uri=args.neo4j_uri,
         user=args.neo4j_user,
-        password=args.neo4j_password
+        password=args.neo4j_password,
+        db=args.neo4j_db
     )
     NODES_PATH = os.path.join(args.input_directory, "nodes")
     REL_PATH = os.path.join(args.input_directory, "relations")
@@ -48,6 +49,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--input_directory", type=str, help="Input file.")
     parser.add_argument("--neo4j_uri", type=str, help="Neo4j URI.")
+    parser.add_argument("--neo4j_db", type=str, help="Neo4j database.")
     parser.add_argument("--neo4j_user", type=str, help="Neo4j user.")
     parser.add_argument("--neo4j_password", type=str, help="Neo4j password.")
 
