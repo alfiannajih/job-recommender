@@ -4,6 +4,26 @@ from job_recommender.dataset.neo4j_connection import Neo4JConnection
 from job_recommender.utils.dataset import get_emb_model
 from job_recommender import logger
 
+def import_batch_nodes(session, nodes_with_embeddings, node_label, node_keys):
+    # Add embeddings to nodes
+    match_statement = ", ".join(["{}: node.{}".format(k, k) for k in node_keys])
+
+    session.run('''
+    UNWIND $node_dict as node
+    MATCH (n:{} {{{}}})
+    CALL db.create.setNodeVectorProperty(n, 'embedding', node.embedding)
+    '''.format(node_label, match_statement), node_dict=nodes_with_embeddings, database_=args.neo4j_db)
+
+def import_batch_relations(session, rel_with_embeddings, relation_label, relation_keys):
+    # Add embeddings to nodes
+    match_statement = ", ".join(["{}: relation.{}".format(k, k) for k in relation_keys])
+    
+    session.run('''
+    UNWIND $relation_dict as relation
+    MATCH ()-[r:{} {{{}}}]->()
+    CALL db.create.setRelationshipVectorProperty(r, 'embedding', relation.embedding)
+    '''.format(relation_label, match_statement), relation_dict=rel_with_embeddings, database_=args.neo4j_db)
+
 def processing_nodes(neo4j_conn, node_labels, batch_size, emb_model):
     with neo4j_conn.get_session() as session:
         batch_n = 1
@@ -30,6 +50,131 @@ def processing_nodes(neo4j_conn, node_labels, batch_size, emb_model):
             
             logger.info("Node [{}] contains {} nodes and keys: [{}]".format(node, node_counts, key_statement))
             
+            i = 1
+            for record in result:
+                rec = {k: record.get("n.{}".format(k)) for k in node_keys}
+                textualized_prop = "\n".join(["{}: {}".format(k, v) for k, v in rec.items()])
+                
+                rec.update(
+                    {"embedding": emb_model.encode(
+                        "{}\n{}".format(node, textualized_prop),
+                        show_progress_bar=False
+                    )}
+                )
+
+                node_with_embeddings.append(rec)
+                
+                if i%batch_size == 0:
+                    import_batch_nodes(session, node_with_embeddings, node, node_keys)
+                    logger.info("[{}] Processed batch {}".format(node, batch_n))
+                    
+                    node_with_embeddings = []
+                    batch_n += 1
+                
+                elif i == node_counts-1:
+                    import_batch_nodes(session, node_with_embeddings, node, node_keys)
+                    logger.info("[{}] Processed batch {}".format(node, batch_n))
+                i += 1
+            batch_n = 1
+            
+            neo4j_conn.create_vector_index(node, 384)
+
+            logger.info("Processing node [{}] is finished".format(node))
+
+def processing_relations(neo4j_conn, relation_label, batch_size, emb_model):
+    with neo4j_conn.get_session() as session:
+        batch_n = 1
+        rel_with_embeddings = []
+        for relation in relation_label:
+            logger.info("Start processing relation: [{}]".format(relation))
+
+            relation_keys = neo4j_conn.get_relation_keys(relation)
+            head, tail = neo4j_conn.get_node_label_from_relation(relation)
+            textualized_relation = "{}.{}.{}".format(head, relation, tail)
+
+            # Check if relation contains property
+            if relation_keys == []:
+                logger.info("Relation [{}] doesn't contains property, processing label only".format(relation))
+                
+                embedding = emb_model.encode(textualized_relation, show_progress_bar=False)
+
+                session.run(
+                    """
+                    MATCH ()-[r:{}]->()
+                    CALL db.create.setRelationshipVectorProperty(r, 'embedding', {})
+                    """.format(relation, list(embedding))
+                )
+
+                logger.info("Processing relation [{}] is finished".format(relation))
+            
+            else:
+                key_statement = ", ".join(["r.{}".format(key) for key in relation_keys])
+
+                result = session.run(
+                    """
+                    MATCH ()-[r:{}]->()
+                    RETURN {}
+                    """.format(relation, key_statement)
+                )
+
+                relation_counts = session.run(
+                    """
+                    MATCH ()-[r:{}]->()
+                    RETURN COUNT(r)
+                    """.format(relation)
+                ).value()[0]
+
+                logger.info("Relation [{}] contains {} relations and keys: [{}]".format(relation, relation_counts, key_statement))
+
+                i = 1
+                for record in result:
+                    rec = {k: record.get("r.{}".format(k)) for k in relation_keys}
+                    textualized_prop = "\n".join(["{}: {}".format(k, v) for k, v in rec.items()])
+
+                    rec.update(
+                        {"embedding": emb_model.encode(
+                            "{}\n{}".format(textualized_relation, textualized_prop),
+                            show_progress_bar=False
+                        )}
+                    )
+
+                    rel_with_embeddings.append(rec)
+
+                    if i%batch_size == 0:
+                        import_batch_relations(session, rel_with_embeddings, relation, relation_keys)
+                        logger.info("[{}] Processed batch {}".format(relation, batch_n))
+                        
+                        rel_with_embeddings = []
+                        batch_n += 1
+
+                    
+                    elif i == relation_counts-1:
+                        import_batch_relations(session, rel_with_embeddings, relation, relation_keys)
+                        logger.info("[{}] Processed batch {}".format(relation, batch_n))
+                    i += 1
+
+                batch_n = 1
+                logger.info("Processing relation [{}] is finished".format(relation))
+
+            '''
+            key_statement = ", ".join(["n.{}".format(key) for key in relation_keys])
+
+            result = session.run(
+                """
+                MATCH (n:{})
+                RETURN {}
+                """.format(relation, key_statement)
+            )
+
+            node_counts = session.run(
+                """
+                MATCH (n:{})
+                RETURN COUNT(n)
+                """.format(node)
+            ).value()[0]
+            
+            logger.info("Node [{}] contains {} nodes and keys: [{}]".format(node, node_counts, key_statement))
+            
             for i, record in enumerate(result):
                 rec = {k: record.get("n.{}".format(k)) for k in node_keys}
                 textualized_prop = "\n".join(["{}: {}".format(k, v) for k, v in rec.items()])
@@ -44,21 +189,21 @@ def processing_nodes(neo4j_conn, node_labels, batch_size, emb_model):
                 node_with_embeddings.append(rec)
                 
                 if i%batch_size == 0:
-                    import_batch(session, node_with_embeddings, node, node_keys)
+                    import_batch_nodes(session, node_with_embeddings, node, node_keys)
                     logger.info("[{}] Processed batch {}".format(node, batch_n))
                     
                     node_with_embeddings = []
                     batch_n += 1
                 
                 elif i == node_counts-1:
-                    import_batch(session, node_with_embeddings, node, node_keys)
+                    import_batch_nodes(session, node_with_embeddings, node, node_keys)
                     logger.info("[{}] Processed batch {}".format(node, batch_n))
 
             batch_n = 1
             
             neo4j_conn.create_vector_index(node, 384)
 
-            logger.info("Processing node [{}] is finished".format(node))
+            logger.info("Processing node [{}] is finished".format(node))'''
 
 def main(args):
     neo4j_conn = Neo4JConnection(
@@ -73,9 +218,15 @@ def main(args):
     node_labels = neo4j_conn.get_node_labels()
     rel_labels = neo4j_conn.get_relation_labels()
 
-    processing_nodes(
+    '''processing_nodes(
         neo4j_conn=neo4j_conn,
         node_labels=node_labels,
+        batch_size=args.batch_size,
+        emb_model=emb_model
+    )'''
+    processing_relations(
+        neo4j_conn=neo4j_conn,
+        relation_label=rel_labels,
         batch_size=args.batch_size,
         emb_model=emb_model
     )
@@ -118,18 +269,6 @@ Embeddings generated and attached to nodes.
 Job Title nodes with embeddings: {records[0].get('countJobTitleWithEmbeddings')}.
 Embedding size: {records[0].get('embeddingSize')}.
     """)'''
-
-
-def import_batch(session, nodes_with_embeddings, node_label, node_keys):
-    # Add embeddings to Movie nodes
-    match_statement = ", ".join(["{}: node.{}".format(k, k) for k in node_keys])
-
-    session.run('''
-    UNWIND $node_dict as node
-    MATCH (n:{} {{{}}})
-    CALL db.create.setNodeVectorProperty(n, 'embedding', node.embedding)
-    '''.format(node_label, match_statement), node_dict=nodes_with_embeddings, database_=args.neo4j_db)
-    #print(f'Processed batch {batch_n}.')
 
 
 if __name__ == "__main__":
