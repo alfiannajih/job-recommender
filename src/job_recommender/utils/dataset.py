@@ -3,20 +3,30 @@ import os
 
 from sentence_transformers import SentenceTransformer, CrossEncoder
 
-def get_header(path):
+def get_csv_header(path):
     with open(path, "r") as f:
         dict_reader = csv.DictReader(f)
         headers = dict_reader.fieldnames
         
     return headers
-def get_label(path):
+
+def get_label_from_path(path):
     _, label = os.path.split(path)
     label = label.replace(".csv", "")
 
     return label
 
+def list_csv_files(path):
+    files = os.listdir(path)
+
+    return [f for f in files if f.endswith(".csv")]
+
+def count_csv_rows(path):
+    with open(path) as f:
+        return sum(1 for line in f)
+
 def create_merge_node_statement(path, node_label):
-    headers = get_header(path)
+    headers = get_csv_header(path)
     headers.remove("prop_id")
     headers.remove("main_prop")
 
@@ -33,7 +43,7 @@ def create_merge_node_statement(path, node_label):
     return statement
 
 def create_merge_relation_statement(path, rel_label):
-    headers = get_header(path)
+    headers = get_csv_header(path)
     headers.remove("h_id")
     headers.remove("t_id")
 

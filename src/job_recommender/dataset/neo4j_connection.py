@@ -1,46 +1,19 @@
 from neo4j import GraphDatabase
 import os
 
-from job_recommender.utils.dataset import create_merge_node_statement, create_merge_relation_statement, create_match_statement, get_label
+from job_recommender.utils.dataset import create_merge_node_statement, create_merge_relation_statement, create_match_statement, get_label_from_path
+from job_recommender.config.configuration import Neo4jConfig
 
 ABSOLUTE_PATH = os.path.abspath(".")
 
 class Neo4JConnection:
-    def __init__(self, uri, user, password, db):
-        self.driver = GraphDatabase.driver(uri, auth=(user, password))
-        self.db = db
+    def __init__(self, config: Neo4jConfig):
+        self.driver = GraphDatabase.driver(config.neo4j_uri, auth=(config.neo4j_user, config.neo4j_password))
+        self.db = config.neo4j_db
+        self.driver.verify_connectivity()
 
     def get_session(self):
         return self.driver.session(database=self.db)
-    
-    def load_csv_to_nodes(self, path):
-        label = get_label(path)
-        merge_statement = create_merge_node_statement(path, label)
-        
-        csv_path = os.path.join(ABSOLUTE_PATH, path)
-
-        with self.get_session() as session:
-            session.run(
-                """
-                LOAD CSV WITH HEADERS FROM 'file://{}' AS row
-                {}
-                """.format(csv_path, merge_statement))
-
-    def load_csv_to_relations(self, path, mapping):
-        label = get_label(path)
-        
-        match_statement = create_match_statement(mapping[label])
-        merge_statement = create_merge_relation_statement(path, label)
-
-        csv_path = os.path.join(ABSOLUTE_PATH, path)
-
-        with self.get_session() as session:
-            session.run(
-                """
-                LOAD CSV WITH HEADERS FROM 'file://{}' AS row
-                {}
-                {}
-                """.format(csv_path, match_statement, merge_statement))
 
     def get_node_labels(self):
         label_result = self.driver.execute_query(
@@ -127,7 +100,7 @@ class Neo4JConnection:
         return nodes
 
     def query_relationship_from_node(self, emb_model, query, n_query):
-        query_emb = list(emb_model.encode(query))
+        #query_emb = list(emb_model.encode(query))
 
         similar_relations = self.driver.execute_query(
             """
@@ -135,7 +108,7 @@ class Neo4JConnection:
             YIELD node, score
             MATCH p=(node)-[r:offered_by]->(connectedNode)
             RETURN elementId(r) AS id, r.job_qualification, r.job_responsibility, r.location
-            """.format(n_query, query_emb)
+            """.format(n_query, query)
         )
         
         relations = []
@@ -152,6 +125,21 @@ class Neo4JConnection:
         rel_ids = [retrieved[i["corpus_id"]]["rel_id"] for i in results]
 
         return rel_ids
+    
+    def query_node(self, node_label, emb_model, query, n_query):
+        #query_emb = list(emb_model.encode(query))
+
+        similar_nodes = self.driver.execute_query(
+            """
+            CALL db.index.vector.queryNodes('{}Index', {}, {})
+            YIELD node
+            RETURN elementId(node) AS id
+            """.format(node_label, n_query, query)
+        )
+
+        ids = [r["id"] for r in similar_nodes.records]
+
+        return ids
 
     def close(self):
         self.driver.close()

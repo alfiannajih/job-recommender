@@ -1,0 +1,12 @@
+neo4j_connection:
+  neo4j_uri: neo4j://localhost:7687
+  neo4j_user: neo4j
+  neo4j_password: admin123
+  neo4j_db: neo4j
+
+kg_construct:
+  input_dir: dataset/job_posting/preprocessed/
+
+kg_indexing:
+  batch_size: 32
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
