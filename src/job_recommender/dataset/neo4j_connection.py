@@ -57,6 +57,28 @@ class Neo4JConnection:
 
         return keys
     
+    def get_all_nodes(self, session, node_label, node_keys):
+        key_statement = ", ".join(["n.{}".format(key) for key in node_keys])
+
+        result = session.run(
+            """
+            MATCH (n:{})
+            RETURN {}
+            """.format(node_label, key_statement)
+        )
+
+        return result
+
+    def get_node_counts(self, node_label):
+        node_counts = self.driver.execute_query(
+            """
+            MATCH (n:{})
+            RETURN COUNT(n)
+            """.format(node_label)
+        ).records[0].value()
+
+        return node_counts
+    
     def create_vector_index_nodes(self, node_label, emb_size):
         with self.get_session() as session:
             session.run(

@@ -24,6 +24,9 @@ def list_csv_files(path):
 def count_csv_rows(path):
     with open(path) as f:
         return sum(1 for line in f)
+    
+def textualize_property(property):
+    return "\n".join(["{}: {}".format(k, v) for k, v in property.items()])
 
 def create_merge_node_statement(path, node_label):
     headers = get_csv_header(path)
@@ -63,13 +66,3 @@ def create_match_statement(mapping):
     statement = "MATCH (h: {} {{id: row.h_id}}), (t: {} {{id: row.t_id}})".format(head_label, tail_label)
 
     return statement
-
-def get_emb_model(path):
-    model = SentenceTransformer(model_name_or_path=path)
-
-    return model
-
-def get_rerank_model(path):
-    model = CrossEncoder(model_name=path)
-
-    return model

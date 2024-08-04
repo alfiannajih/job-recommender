@@ -17,7 +17,7 @@ class KnowledgeGraphConstructionPipeline(KnowledgeGraphConstruction):
         ):
         KnowledgeGraphConstruction.__init__(self, config, neo4j_connection)
 
-    def _node_construction_pipeline(self):
+    def node_construction_pipeline(self):
         """
         Construct nodes from CSV files iteratively for all listed nodes in the directory.
         """
@@ -32,7 +32,7 @@ class KnowledgeGraphConstructionPipeline(KnowledgeGraphConstruction):
         
         logger.info("Construction from all listed nodes is finished")
     
-    def _relation_construction_pipeline(self):
+    def relation_construction_pipeline(self):
         """
         Construct relations from CSV files iteratively for all listed relations in the directory.
         """
@@ -52,6 +52,6 @@ class KnowledgeGraphConstructionPipeline(KnowledgeGraphConstruction):
         Run the pipeline to construct knowledge graph
         """
         logger.info("Constructing knowledge graph from {}".format(self.config.input_dir))
-        self._node_construction_pipeline()
-        self._relation_construction_pipeline()
+        self.node_construction_pipeline()
+        self.relation_construction_pipeline()
         logger.info("Knowledge graph construction is finisher")
