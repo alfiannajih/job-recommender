@@ -15,11 +15,11 @@ def read_yaml(path):
         return ConfigBox(yaml.safe_load(fp))
     
 def get_emb_model(path):
-    model = SentenceTransformer(model_name_or_path=path)
+    model = SentenceTransformer(model_name_or_path=path, trust_remote_code=True)
 
     return model
 
 def get_rerank_model(path):
-    model = CrossEncoder(model_name=path)
+    model = CrossEncoder(model_name=path, trust_remote_code=True)
 
     return model

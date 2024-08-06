@@ -1,4 +1,9 @@
 import argparse
+import sys
+import os
+import pathlib
+
+sys.path.append(str(pathlib.Path(os.path.dirname(os.path.realpath(__file__)), "src")))
 
 from job_recommender import logger
 from job_recommender.pipeline.kg_construct import KnowledgeGraphConstructionPipeline
@@ -8,7 +13,7 @@ from job_recommender.dataset.neo4j_connection import Neo4JConnection
 
 def main(args):
     config = ConfigurationManager()
-
+    
     neo4j_connection_config = config.get_neo4j_connection_config()
     neo4j_connection = Neo4JConnection(neo4j_connection_config)
 
@@ -26,7 +31,7 @@ def main(args):
         kg_indexing_config = config.get_kg_indexing_config()
         
         kg_indexing_pipeline = KnowledgeGraphIndexingPipeline(kg_indexing_config, neo4j_connection)
-        kg_indexing_pipeline.nodes_indexing()
+        kg_indexing_pipeline.knowledge_graph_indexing_pipeline()
         stage += 1
 
 if __name__ == "__main__":
