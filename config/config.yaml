@@ -9,4 +9,8 @@ kg_construct:
 
 kg_indexing:
   batch_size: 32
-  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+  embedding_model: jinaai/jina-embeddings-v2-base-en
+
+kg_retrieval:
+  embedding_model: jinaai/jina-embeddings-v2-base-en
+  rerank_model: cross-encoder/ms-marco-MiniLM-L-12-v2

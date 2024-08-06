@@ -51,6 +51,23 @@ class KGIndexingConfig(Neo4jConfig):
     embedding_model: str
     batch_size: int
 
+@dataclass(frozen=True)
+class KGRetrievalConfig(Neo4jConfig):
+    """
+    A class to store configuration to retrieve nodes and relations of knowledge graph.
+
+        Attributes:
+            neo4j_uri (str): The URI for the neo4j connection.
+            neo4j_user (str): The username for the neo4j connection.
+            neo4j_password (str): The password for the neo4j connection.
+            neo4j_db (str): The database name for the neo4j connection.
+            input_dir (str): The directory containing input files for constructing the knowledge graph.
+            embedding_model (str): Path of embedding model (could be local path or huggingface path).
+            rerank_model (str): Path of rerank model (could be local path or huggingface path).
+    """
+    embedding_model: str
+    rerank_model: int
+
 class ConfigurationManager:
     """
     A class to manage configuration settings.
@@ -128,3 +145,24 @@ class ConfigurationManager:
         )
 
         return kg_indexing_config
+    
+    def get_kg_retrieval_config(self) -> KGRetrievalConfig:
+        """
+        Retrieves the KGRetrievalConfig for indexing nodes and relationships of knowledge graphs.
+
+        Returns:
+            KGRetrievalConfig: An instance of KGRetrievalConfig with the specified configuration.
+        """
+        config = self.config.kg_retrieval
+        connection_config = self.get_neo4j_connection_config()
+
+        kg_retrieval_config = KGRetrievalConfig(
+            neo4j_uri=connection_config.neo4j_uri,
+            neo4j_user=connection_config.neo4j_user,
+            neo4j_password=connection_config.neo4j_password,
+            neo4j_db=connection_config.neo4j_db,
+            embedding_model=config.embedding_model,
+            rerank_model=config.rerank_model
+        )
+
+        return kg_retrieval_config
