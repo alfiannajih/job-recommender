@@ -1,6 +1,7 @@
 import os
 import logging
 import sys
+sys.path.append('../src')
 
 logging_str = "[%(asctime)s: %(levelname)s: %(module)s: %(message)s]"
 
