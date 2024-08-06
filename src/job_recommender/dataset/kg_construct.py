@@ -1,4 +1,4 @@
-import os
+import pathlib
 
 from job_recommender.config.configuration import KGConstructConfig
 from job_recommender import logger
@@ -13,7 +13,7 @@ from job_recommender.utils.common import (
 )
 
 # Absolute path of the project folder
-ABSOLUTE_PATH = os.path.abspath(".")
+ABSOLUTE_PATH = pathlib.Path(".").resolve()
 
 class KnowledgeGraphConstruction:
     """
@@ -42,9 +42,9 @@ class KnowledgeGraphConstruction:
         self.config = config
         self.neo4j_connection = neo4j_connection
 
-        self.nodes_path = os.path.join(self.config.input_dir, "nodes")
-        self.relations_path = os.path.join(self.config.input_dir, "relations")
-        self.relations_map_path = os.path.join(self.relations_path, "rel_mapping.json")
+        self.nodes_path = pathlib.Path(self.config.input_dir, "nodes")
+        self.relations_path = pathlib.Path(self.config.input_dir, "relations")
+        self.relations_map_path = pathlib.Path(self.relations_path, "rel_mapping.json")
 
     def load_csv_to_nodes(self, path: str):
         """
@@ -62,13 +62,14 @@ class KnowledgeGraphConstruction:
         merge_statement = self._create_merge_node_statement(path, label)
         
         # Get absolute path of the csv file
-        csv_path = os.path.join(ABSOLUTE_PATH, path)
+        csv_path = pathlib.Path(ABSOLUTE_PATH, path)
+        csv_path = str(pathlib.PurePosixPath(csv_path)).replace(" ", "%20")
 
         # Load the CSV files to create nodes in Neo4j Database
         with self.neo4j_connection.get_session() as session:
             session.run(
                 """
-                LOAD CSV WITH HEADERS FROM 'file://{}' AS row
+                LOAD CSV WITH HEADERS FROM 'file:///{}' AS row
                 {}
                 """.format(csv_path, merge_statement))
         logger.info("Construction nodes [{}] is finished".format(label))
@@ -91,13 +92,14 @@ class KnowledgeGraphConstruction:
         merge_statement = self._create_merge_relation_statement(path, label)
 
         # Get absolute path of the csv file
-        csv_path = os.path.join(ABSOLUTE_PATH, path)
+        csv_path = pathlib.Path(ABSOLUTE_PATH, path)
+        csv_path = str(pathlib.PurePosixPath(csv_path)).replace(" ", "%20")
 
         # Load the CSV files to create relations in Neo4j Database
         with self.neo4j_connection.get_session() as session:
             session.run(
                 """
-                LOAD CSV WITH HEADERS FROM 'file://{}' AS row
+                LOAD CSV WITH HEADERS FROM 'file:///{}' AS row
                 {}
                 {}
                 """.format(csv_path, match_statement, merge_statement))

@@ -1,4 +1,4 @@
-import os
+import pathlib
 
 from job_recommender.config.configuration import KGConstructConfig
 from job_recommender import logger
@@ -27,7 +27,7 @@ class KnowledgeGraphConstructionPipeline(KnowledgeGraphConstruction):
         logger.info("Listed {} CSV files: {}".format(len(nodes_csv_files), nodes_csv_files))
 
         for nodes_csv_file in nodes_csv_files:
-            path = os.path.join(self.nodes_path, nodes_csv_file)
+            path = pathlib.Path(self.nodes_path, nodes_csv_file)
             self.load_csv_to_nodes(path)
         
         logger.info("Construction from all listed nodes is finished")
@@ -42,7 +42,7 @@ class KnowledgeGraphConstructionPipeline(KnowledgeGraphConstruction):
         logger.info("Listed {} CSV files: {}".format(len(rels_csv_files), rels_csv_files))
         
         for rels_csv_file in rels_csv_files:
-            path = os.path.join(self.relations_path, rels_csv_file)
+            path = pathlib.Path(self.relations_path, rels_csv_file)
             self.load_csv_to_relations(path)
         
         logger.info("Construction from all listed relations is finished")

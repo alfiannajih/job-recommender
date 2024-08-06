@@ -1,10 +1,9 @@
 from neo4j import GraphDatabase
-import os
+import pathlib
 
-from job_recommender.utils.dataset import create_merge_node_statement, create_merge_relation_statement, create_match_statement, get_label_from_path
 from job_recommender.config.configuration import Neo4jConfig
 
-ABSOLUTE_PATH = os.path.abspath(".")
+ABSOLUTE_PATH = pathlib.Path(".").resolve()
 
 class Neo4JConnection:
     def __init__(self, config: Neo4jConfig):
@@ -69,6 +68,18 @@ class Neo4JConnection:
 
         return result
 
+    def get_all_relations(self, session, relation_label, relation_keys):
+        key_statement = ", ".join(["r.{}".format(key) for key in relation_keys])
+
+        result = session.run(
+            """
+            MATCH ()-[r:{}]->()
+            RETURN {}
+            """.format(relation_label, key_statement)
+        )
+
+        return result
+
     def get_node_counts(self, node_label):
         node_counts = self.driver.execute_query(
             """
@@ -78,6 +89,16 @@ class Neo4JConnection:
         ).records[0].value()
 
         return node_counts
+    
+    def get_relation_counts(self, relation_label):
+        relation_counts = self.driver.execute_query(
+            """
+            MATCH ()-[r:{}]->()
+            RETURN COUNT(r)
+            """.format(relation_label)
+        ).records[0].value()
+
+        return relation_counts
     
     def create_vector_index_nodes(self, node_label, emb_size):
         with self.get_session() as session:
@@ -91,6 +112,14 @@ class Neo4JConnection:
                     `vector.similarity_function`: 'cosine'
                 }}}}
                 """.format(node_label, node_label, emb_size)
+            )
+    
+    def delete_vector_index(self, label):
+        with self.get_session() as session:
+            session.run(
+                """
+                DROP INDEX {}Index IF EXISTS
+                """.format(label)
             )
 
     def create_vector_index_relations(self, relation_label, emb_size):
@@ -106,6 +135,42 @@ class Neo4JConnection:
                 }}}}
                 """.format(relation_label, relation_label, emb_size)
             )
+
+    def get_head_node(self, relation_ids):
+        node_ids = self.driver.execute_query(
+            """
+            MATCH (h)-[r]->()
+            WHERE elementId(r) IN {}
+            RETURN DISTINCT elementId(h) AS id
+            """.format(relation_ids)
+        )
+        nodes = [node.value() for node in node_ids.records]
+        
+        return nodes
+    
+    def get_tail_node(self, relation_ids):
+        node_ids = self.driver.execute_query(
+            """
+            MATCH ()-[r]->(t)
+            WHERE elementId(r) IN {}
+            RETURN DISTINCT elementId(t) AS id
+            """.format(relation_ids)
+        )
+        nodes = [node.value() for node in node_ids.records]
+        
+        return nodes
+    
+    def get_tail_connection_from_head(self, head_ids):
+        relation_ids = self.driver.execute_query(
+            """
+            MATCH (h)-[r]->()
+            WHERE elementId(h) IN {}
+            RETURN DISTINCT elementId(r) AS id LIMIT 50
+            """.format(head_ids)
+        )
+        relations = [relation.value() for relation in relation_ids.records]
+
+        return relations
 
     def get_node_label_from_relation(self, relation):
         node_result = self.driver.execute_query(
