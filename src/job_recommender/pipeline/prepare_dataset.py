@@ -1,79 +1,82 @@
-from groq import Groq
+from openai import OpenAI
+import os
+import re
+from dotenv import load_dotenv
 
-client = Groq()
+load_dotenv()
 
-chat_completion = client.chat.completions.create(
-    #
-    # Required parameters
-    #
-    messages=[
-        # Set an optional system message. This sets the behavior of the
-        # assistant and can be used to provide specific instructions for
-        # how it should behave throughout the conversation.
-        {
-            "role": "system",
-            "content": """Generate a CV for applying based on the given description.
-Create resume with real university and real company in Indonesia.
-The CV should be contains only of sections: Education, Experience, Projects, and Skills.
-Each section should be separated by a new line and capitalized."""
-        },
-        # Set a user message for the assistant to respond to.
-        {
-            "role": "user",
-            "content": """Fresh graduate mathematics in Indonesia.
-He want to get a job as AI engineer and Data engineer in big tech company.
-He had internship experience in startup as backend engineer.""",
-        }
-    ],
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+topic_prompt = "Give me a list of 5 of a short professional background where each elements only consist one to two sentence with diverse background in with real education, interests, and works experience in Indonesia, but without a name."
+client = OpenAI(api_key=OPENAI_API_KEY)
 
-    # The language model which will generate the completion.
-    model="llama-3.1-70b-versatile",
+def initialize_topics():
+        """Ensure topics are initialized, i.e. topics already exist and are read,
+        or a new list of topics is generated.
+        """
+        topics_path = "topics.txt"
+        topic_request_count = 10
+        if os.path.exists(topics_path):
+            topics = list(
+                {
+                    line.strip()
+                    for line in open(topics_path).readlines()
+                    if line.strip()
+                }
+            )
+            
+        seen = set([])
+        topics = []
+        with open(topics_path, "w") as outfile:
+            count = topic_request_count
+            while count > 0:
+                todo = 8 if count >= 8 else count
+                responses = [
+                        generate_response(topic_prompt)
+                        for _ in range(todo)
+                    ]
+                count -= todo
+                for response in responses:
+                    if not response:
+                        continue
+                    for topic in re.findall(
+                        r"(?:^|\n)\d+\. (.*?)(?:$|(?=\n\d+\. ))", response, re.DOTALL
+                    ):
+                        if (
+                            not topic
+                            or topic.strip().endswith(":")
+                            or topic.lower().strip() in seen
+                        ):
+                            continue
+                        seen.add(topic.lower().strip())
+                        topics.append(topic)
+                        outfile.write(topic.strip() + "\n")
 
-    #
-    # Optional parameters
-    #
+def generate_response(topic_prompt):
+        """Call the model endpoint with the specified instruction and return the text response.
 
-    # Controls randomness: lowering results in less random completions.
-    # As the temperature approaches zero, the model will become deterministic
-    # and repetitive.
-    temperature=1,
+        :param instruction: The instruction to respond to.
+        :type instruction: str
 
-    # The maximum number of tokens to generate. Requests can use up to
-    # 32,768 tokens shared between prompt and completion.
-    max_tokens=1024,
+        :return: Response text.
+        :rtype: str
+        """
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=1,
+            top_p=1,
+            messages=[{"role": "user", "content": topic_prompt}]
+        )
+        
+        if (
+            not response
+            or not response.choices
+            or response.choices[0].finish_reason == "length"
+        ):
+            return None
+        text = response.choices[0].message.content
 
-    # Controls diversity via nucleus sampling: 0.5 means half of all
-    # likelihood-weighted options are considered.
-    top_p=1,
+        if text.startswith(("I'm sorry,", "Apologies,", "I can't", "I won't")):
+            return None
+        return text
 
-    # A stop sequence is a predefined or user-specified text string that
-    # signals an AI to stop generating content, ensuring its responses
-    # remain focused and concise. Examples include punctuation marks and
-    # markers like "[end]".
-    stop=None,
-
-    # If set, partial message deltas will be sent.
-    stream=False,
-)
-
-print(chat_completion.choices[0].message.content)
-
-class GenerateSyntheticResume:
-    def __init__(self):
-        self.instruct = """Generate a CV for applying based on the given description.
-Create resume with real university and real company in Indonesia.
-The CV should be contains only of sections: Education, Experience, Projects, and Skills.
-Each section should be separated by a new line and capitalized."""
-
-    def generate_description(self):
-        pass
-
-    def generate_resume(self):
-        pass
-
-class GenerateInstructionLabels:
-    def __init__(self):
-        pass
-
-    def generate_feedback(self):
-        pass
+initialize_topics()
