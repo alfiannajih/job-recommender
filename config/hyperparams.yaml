@@ -1,0 +1,32 @@
+hyperparams:
+  #Training
+  seed: 0
+  learning_rate: 1e-5
+  weight_decay: 0.05
+  patience: 2
+  batch_size: 8
+  grad_steps: 2
+
+  # Learning Rate Scheduler
+  num_epochs: 10
+  warmup_epochs: 1
+
+  # Validation
+  eval_batch_size: 16
+
+  # LLM related
+  llm_model_name: '7b'
+  llm_model_path: ''
+  llm_frozen: 'True'
+  llm_num_virtual_tokens: 10
+  output_dir: 'output'
+  max_txt_len: 512
+  max_new_tokens: 32
+
+  # GNN related
+  gnn_model_name: 'gt'
+  gnn_num_layers: 4
+  gnn_in_dim: 768
+  gnn_hidden_dim: 1024
+  gnn_num_heads: 4
+  gnn_dropout: 0.0

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from job_recommender.utils.common import read_yaml
 
 CONFIG_PATH = "config/config.yaml"
+HYPERPARAMS_PATH = "config/hyperparameters.yaml"
 
 @dataclass(frozen=True)
 class Neo4jConfig:
@@ -68,6 +69,40 @@ class KGRetrievalConfig(Neo4jConfig):
     embedding_model: str
     rerank_model: int
 
+@dataclass(frozen=True)
+class HyperparametersConfig:
+    #Training
+    seed: int
+    learning_rate: float
+    weight_decay: float
+    patience: int
+    batch_size: int
+    grad_steps: int
+
+    # Learning Rate Scheduler
+    num_epochs: int
+    warmup_epochs: int
+
+    # Validation
+    eval_batch_size: int
+
+    # LLM related
+    llm_model_name: str
+    llm_model_path: str
+    llm_frozen: bool
+    llm_num_virtual_tokens: int
+    output_dir: str
+    max_txt_len: int
+    max_new_tokens: int
+
+    # GNN related
+    gnn_model_name: str
+    gnn_num_layers: int
+    gnn_in_dim: int
+    gnn_hidden_dim: int
+    gnn_num_heads: int
+    gnn_dropout: float
+
 class ConfigurationManager:
     """
     A class to manage configuration settings.
@@ -77,7 +112,8 @@ class ConfigurationManager:
     """
     def __init__(
             self,
-            config_path: str = CONFIG_PATH
+            config_path: str = CONFIG_PATH,
+            hyperparams_path: str = HYPERPARAMS_PATH
         ):
         """
         Initializes the instance with config.yaml.
@@ -86,6 +122,7 @@ class ConfigurationManager:
             config_path (str): Path of config.yaml
         """
         self.config = read_yaml(config_path)
+        self.hp = read_yaml(hyperparams_path)
 
     def get_neo4j_connection_config(self) -> Neo4jConfig:
         """
@@ -166,3 +203,31 @@ class ConfigurationManager:
         )
 
         return kg_retrieval_config
+    
+    def get_hyperparameters(self) -> HyperparametersConfig:
+        hp = self.hp
+
+        hp = HyperparametersConfig(
+            seed=hp.seed,
+            learning_rate=hp.learning_rate,
+            weight_decay=hp.weight_decay,
+            patience=hp.patience,
+            batch_size=hp.batch_size,
+            grad_steps=hp.grad_steps,
+            num_epochs=hp.num_epocs,
+            warmup_epochs=hp.warmup_epochs,
+            eval_batch_size=hp.eval_batch_size,
+            llm_model_name=hp.llm_model_name,
+            llm_model_path=hp.llm_model_path,
+            llm_frozen=hp.llm_frozen,
+            llm_num_virtual_tokens=hp.llm_num_virtual_tokens,
+            output_dir=hp.output_dir,
+            max_txt_len=hp.max_txt_len,
+            max_new_tokens=hp.max_new_tokens,
+            gnn_model_name=hp.gnn_model_name,
+            gnn_num_layers=hp.gnn_num_layers,
+            gnn_in_dim=hp.gnn_in_dim,
+            gnn_hidden_dim=hp.gnn_hidden_dim,
+            gnn_num_heads=hp.gnn_num_heads,
+            gnn_dropout=hp.gnn_dropout,
+        )
