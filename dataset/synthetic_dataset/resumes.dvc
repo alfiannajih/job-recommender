@@ -1,0 +1,6 @@
+outs:
+- md5: df34ff4ce6934d76d2141192cacd03ec.dir
+  size: 1603556
+  nfiles: 32
+  hash: md5
+  path: resumes
