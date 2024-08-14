@@ -4,13 +4,33 @@ neo4j_connection:
   neo4j_password: admin123
   neo4j_db: neo4j
 
+raw_dataset:
+  raw_path: raw_datasets/job_posting
+  preprocessed_path: dataset_test/job_posting/preprocessed
+
 kg_construct:
-  input_dir: dataset/job_posting/preprocessed/
+  input_dir: dataset_test/job_posting/preprocessed/
 
 kg_indexing:
   batch_size: 32
-  embedding_model: jinaai/jina-embeddings-v2-base-en
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
 
 kg_retrieval:
-  embedding_model: jinaai/jina-embeddings-v2-base-en
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
   rerank_model: cross-encoder/ms-marco-MiniLM-L-12-v2
+
+synthetic_dataset:
+  # Synthetic description
+  desc_prompt_system: Your task is to create a synthetic data
+  desc_prompt_user: Provide a list of 5 brief backgrounds of individuals (ranging from fresh graduates to professionals within 3 years experienced) with diverse educational and work experiences in Indonesia. Should be formatted in JSON and 1-2 sentences long, the output should be used real world data, which are real education, interests, and work experience in the fields of science, technology, engineering, and math. Do not include names.
+  desc_path: dataset/synthetic_dataset/desc.jsonl
+  desc_request_count: 2
+  desc_model: gpt-4o-mini
+  #Synthetic resume
+  resume_prompt_system: "Create a synthetic resume using the background information provided. Use real companies, universities, and dates in Indonesia. The resume should include only the following sections in JSON format:\nEDUCATION\nEXPERIENCE\nPROJECT\nSKILLS. The education section should contains minimum of bachelor degree, if description only provide upper education, just make up a bachelor degree record that still relevant to the description. The experience and project section could contains up to two elements."
+  resume_path: dataset/synthetic_dataset/resume.jsonl
+  resume_model: gpt-4o-mini
+  #Synthetic feedback
+  feedback_prompt_system: "Evaluate the given resume against several job descriptions within the same field. Ignore overly specific job requirements that are not crucial to the overall role. Provide a concise feedback summary in JSON format into the following sections:\nstrengths (Potential reasons for Acceptance)\nweaknesses (Potential reasons for Rejection)\nimprovement(Recommendation for Improvement)"
+  feedback_path: dataset/synthetic_dataset/feedback.jsonl
+  feedback_model: gpt-4o-mini

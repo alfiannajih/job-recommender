@@ -70,6 +70,25 @@ class KGRetrievalConfig(Neo4jConfig):
     rerank_model: int
 
 @dataclass(frozen=True)
+class RawDatasetConfig:
+    raw_path: str
+    preprocessed_path: str
+
+@dataclass(frozen=True)
+class SyntheticDatasetConfig:
+    desc_prompt_system: str
+    desc_prompt_user: str
+    desc_path: str
+    desc_request_count: int
+    desc_model: str
+    resume_prompt_system: str
+    resume_path: str
+    resume_model: str
+    feedback_prompt_system: str
+    feedback_path: str
+    feedback_model: str
+
+@dataclass(frozen=True)
 class HyperparametersConfig:
     #Training
     seed: int
@@ -203,6 +222,35 @@ class ConfigurationManager:
         )
 
         return kg_retrieval_config
+    
+    def get_raw_dataset_config(self) -> RawDatasetConfig:
+        config = self.config.raw_dataset
+
+        raw_dataset_config = RawDatasetConfig(
+            raw_path=config.raw_path,
+            preprocessed_path=config.preprocessed_path
+        )
+
+        return raw_dataset_config
+
+    def get_synthetic_dataset_config(self) -> SyntheticDatasetConfig:
+        config = self.config.synthetic_dataset
+
+        synthetic_dataset_config = SyntheticDatasetConfig(
+            desc_prompt_system=config.desc_prompt_system,
+            desc_prompt_user=config.desc_prompt_user,
+            desc_path=config.desc_path,
+            desc_request_count=config.desc_request_count,
+            desc_model=config.desc_model,
+            resume_prompt_system=config.resume_prompt_system,
+            resume_path=config.resume_path,
+            resume_model=config.resume_model,
+            feedback_prompt_system=config.feedback_prompt_system,
+            feedback_path=config.feedback_path,
+            feedback_model=config.feedback_model        
+        )
+            
+        return synthetic_dataset_config
     
     def get_hyperparameters(self) -> HyperparametersConfig:
         hp = self.hp
