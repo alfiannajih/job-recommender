@@ -1,3 +1,0 @@
-python construct_kg.py --input_directory datasets/job_posting/preprocessed --neo4j_uri neo4j://localhost:7687 --neo4j_user neo4j --neo4j_password admin123
-
-python kg_index.py --embedding_model_path sentence-transformers/all-MiniLM-L6-v2 --batch_size 64 --neo4j_uri neo4j://localhost:7687 --neo4j_db neo4j --neo4j_user neo4j --neo4j_password admin123
