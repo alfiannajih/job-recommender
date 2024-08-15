@@ -6,18 +6,18 @@ neo4j_connection:
 
 raw_dataset:
   raw_path: raw_datasets/job_posting
-  preprocessed_path: dataset_test/job_posting/preprocessed
+  preprocessed_path: dataset/job_posting
 
 kg_construct:
-  input_dir: dataset_test/job_posting/preprocessed/
+  input_dir: dataset_test/job_posting
 
 kg_indexing:
   batch_size: 32
-  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+  embedding_model: thenlper/gte-base #sentence-transformers/all-MiniLM-L6-v2
 
 kg_retrieval:
-  embedding_model: sentence-transformers/all-MiniLM-L6-v2
-  rerank_model: cross-encoder/ms-marco-MiniLM-L-12-v2
+  embedding_model: thenlper/gte-base #sentence-transformers/all-MiniLM-L6-v2
+  rerank_model: BAAI/bge-reranker-large #cross-encoder/ms-marco-MiniLM-L-12-v2
 
 synthetic_dataset:
   # Synthetic description
@@ -28,9 +28,9 @@ synthetic_dataset:
   desc_model: gpt-4o-mini
   #Synthetic resume
   resume_prompt_system: "Create a synthetic resume using the background information provided. Use real companies, universities, and dates in Indonesia. The resume should include only the following sections in JSON format:\nEDUCATION\nEXPERIENCE\nPROJECT\nSKILLS. The education section should contains minimum of bachelor degree, if description only provide upper education, just make up a bachelor degree record that still relevant to the description. The experience and project section could contains up to two elements."
-  resume_path: dataset/synthetic_dataset/resume.jsonl
+  resume_path: dataset/synthetic_dataset/resumes
   resume_model: gpt-4o-mini
   #Synthetic feedback
-  feedback_prompt_system: "Evaluate the given resume against several job descriptions within the same field. Ignore overly specific job requirements that are not crucial to the overall role. Provide a concise feedback summary in JSON format into the following sections:\nstrengths (Potential reasons for Acceptance)\nweaknesses (Potential reasons for Rejection)\nimprovement(Recommendation for Improvement)"
-  feedback_path: dataset/synthetic_dataset/feedback.jsonl
+  feedback_prompt_system: "Evaluate the given resume against the given description to guide the user for his future career with the current job market. Provide a concise feedback summary in JSON format into the following sections:\nstrengths (Potential reasons for Acceptance)\nweaknesses (Potential reasons for Rejection)\nimprovement(Recommendation for Improvement)"
+  feedback_path: dataset/synthetic_dataset/feedbacks
   feedback_model: gpt-4o-mini
