@@ -5,6 +5,35 @@ import pandas as pd
 import torch
 import os
 
+from job_recommender.config.configuration import PreprocessResumeConfig
+from job_recommender.dataset.neo4j_connection import Neo4JConnection
+from job_recommender.pipeline.knowledge_graph import KnowledgeGraphRetrievalPipeline
+
+class PreprocessedResumeDataset:
+    def __init__(
+            self,
+            config: PreprocessResumeConfig,
+            neo4j_connection: Neo4JConnection,
+            retriever: KnowledgeGraphRetrievalPipeline
+    ):
+        self.config = config
+        self.neo4j_connection = neo4j_connection
+        self.retriever = retriever
+
+    def retrieve_graph(
+            self,
+            resume: str,
+            description: str
+    ):
+        subgraph, textualized_graph = self.retriever.graph_retrieval_pipeline(
+            resume=resume,
+            desc=description,
+            top_emb=5,
+            top_rerank=150
+        )
+
+        return subgraph, textualized_graph
+
 class ResumeDataset(Dataset):
     def __init__(self, path, transform=None):
         super().__init__()

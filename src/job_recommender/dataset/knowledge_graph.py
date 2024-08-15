@@ -115,7 +115,7 @@ class PrepareRawDataset:
         
         # Create relations
         job_comp_rel = posting_df.copy()
-        breakpoint()
+        
         job_comp_rel["title"] = job_comp_rel["title"].apply(lambda x: job_map.get(x.lower(), None))
         job_comp_rel["company_id"] = job_comp_rel["company_id"].apply(lambda x: x if x in company_nodes.index else None)
         job_comp_rel = job_comp_rel.dropna(subset=["title", "company_id"]).astype({"title": int, "company_id": int})

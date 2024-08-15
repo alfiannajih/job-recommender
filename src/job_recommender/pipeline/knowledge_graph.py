@@ -324,7 +324,7 @@ class KnowledgeGraphRetrievalPipeline(KnowledgeGraphRetrieval):
                 """
                 MATCH (h)-[r]->(t)
                 WHERE elementId(r) IN {}
-                RETURN h.name AS h_name, h.embedding AS h_embedding, TYPE(r) AS r_type, r.embedding AS r_embedding, r.job_qualification AS r_job_qualification, r.job_responsibility AS r_job_responsibility, t.embedding AS t_embedding, t.name AS t_name
+                RETURN h.name AS h_name, h.embedding AS h_embedding, TYPE(r) AS r_type, r.embedding AS r_embedding, r.description AS job_description, t.embedding AS t_embedding, t.name AS t_name
                 """.format(triples)
             )
 
@@ -351,7 +351,7 @@ class KnowledgeGraphRetrievalPipeline(KnowledgeGraphRetrieval):
                 tail_nodes.append(rec.get("t_name"))
                 edge_attr.append(rec.get("r_embedding"))
 
-                textualized_prop = "{}\nJob qualification: {}\nJob responsibility: {}".format(rec.get("r_type"), rec.get("r_job_qualification"), rec.get("r_job_responsibility"))
+                textualized_prop = "{}\nJob Description: {}".format(rec.get("r_type"), rec.get("job_description"))
 
                 edges.append({
                     "src": node_mapping[rec.get("h_name")],
@@ -383,7 +383,7 @@ class KnowledgeGraphRetrievalPipeline(KnowledgeGraphRetrieval):
     
     def graph_retrieval_pipeline(self, resume, desc, top_emb, top_rerank):
         triples, query_emb = self.triples_retrieval(resume, desc, top_emb, top_rerank)
-        subgraph, desc = self.build_graph(triples, query_emb)
+        subgraph, textualize_graph = self.build_graph(triples, query_emb)
         
-        return subgraph, desc
+        return subgraph, textualize_graph
         #return graph, nodes, edges
