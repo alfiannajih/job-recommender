@@ -24,8 +24,9 @@ torch.cuda.empty_cache()
 def main(args):
     config = ConfigurationManager()
     
-    neo4j_connection_config = config.get_neo4j_connection_config()
-    neo4j_connection = Neo4JConnection(neo4j_connection_config)
+    if args.construct_kg or args.index_kg or args.preprocess_resume_dataset:
+        neo4j_connection_config = config.get_neo4j_connection_config()
+        neo4j_connection = Neo4JConnection(neo4j_connection_config)
 
     stage = 0
     if args.preprocess_raw_dataset:
