@@ -53,7 +53,7 @@ def main(args):
     progress_bar = tqdm(range(num_training_steps))
     best_val_loss = float('inf')
 
-    """for epoch in range(args.num_epochs):
+    for epoch in range(args.num_epochs):
 
         model.train()
         epoch_loss, accum_loss = 0., 0.
@@ -106,7 +106,7 @@ def main(args):
         #    break
 
     torch.cuda.empty_cache()
-    torch.cuda.reset_max_memory_allocated()"""
+    torch.cuda.reset_max_memory_allocated()
 
     # Step 5. Evaluating
     os.makedirs(f'{args.output_dir}/{args.dataset}', exist_ok=True)

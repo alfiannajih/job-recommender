@@ -49,7 +49,8 @@ def _save_checkpoint(model, optimizer, cur_epoch, args, is_best=False):
         "config": args,
         "epoch": cur_epoch,
     }
-    path = f'{args.output_dir}/{args.dataset}/model_name_{args.model_name}_llm_model_name_{args.llm_model_name}_llm_frozen_{args.llm_frozen}_max_txt_len_{args.max_txt_len}_max_new_tokens_{args.max_new_tokens}_gnn_model_name_{args.gnn_model_name}_patience_{args.patience}_num_epochs_{args.num_epochs}_seed{args.seed}_checkpoint_{"best" if is_best else cur_epoch}.pth'
+    #path = f'{args.output_dir}/{args.dataset}/model_name_{args.model_name}_llm_model_name_{args.llm_model_name}_llm_frozen_{args.llm_frozen}_max_txt_len_{args.max_txt_len}_max_new_tokens_{args.max_new_tokens}_gnn_model_name_{args.gnn_model_name}_patience_{args.patience}_num_epochs_{args.num_epochs}_seed{args.seed}_checkpoint_{"best" if is_best else cur_epoch}.pth'
+    path = "{}/{}/{}_model.pth".format(args.output_dir, args.dataset, "best" if is_best else cur_epoch)
     print("Saving checkpoint at epoch {} to {}.".format(cur_epoch, path))
     torch.save(save_obj, path)
 

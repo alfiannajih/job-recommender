@@ -95,6 +95,7 @@ class SyntheticDatasetConfig:
 
 @dataclass(frozen=True)
 class HyperparametersConfig:
+    input_dir: str
     #Training
     seed: int
     learning_rate: float
@@ -271,13 +272,14 @@ class ConfigurationManager:
         hp = self.hp
 
         hp = HyperparametersConfig(
+            input_dir=hp.input_dir,
             seed=hp.seed,
             learning_rate=hp.learning_rate,
             weight_decay=hp.weight_decay,
             patience=hp.patience,
             batch_size=hp.batch_size,
             grad_steps=hp.grad_steps,
-            num_epochs=hp.num_epocs,
+            num_epochs=hp.num_epochs,
             warmup_epochs=hp.warmup_epochs,
             eval_batch_size=hp.eval_batch_size,
             llm_model_name=hp.llm_model_name,
@@ -294,3 +296,5 @@ class ConfigurationManager:
             gnn_num_heads=hp.gnn_num_heads,
             gnn_dropout=hp.gnn_dropout,
         )
+
+        return hp
