@@ -2,6 +2,7 @@ import os
 import gc
 from tqdm import tqdm
 import torch
+from torch.utils.data import random_split
 import json
 import pandas as pd
 from torch.utils.data import DataLoader
@@ -23,19 +24,21 @@ def main(args):
     seed = args.seed
 
     seed_everything(seed=args.seed)
-    print(args)
 
-    dataset = ResumeDataset("dataset/samples")
+    generator = torch.Generator().manual_seed(42)
+
+    dataset = ResumeDataset("dataset/resume_dataset")
+    train_set, val_set, test_set, _ = random_split(dataset, [0.01, 0.01, 0.01, 0.97], generator=generator)
 
     # Step 2: Build Node Classification Dataset
-    train_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
-    val_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
-    test_loader = DataLoader(dataset, batch_size=args.eval_batch_size, shuffle=False, collate_fn=collate_fn)
+    train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
+    val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
+    test_loader = DataLoader(test_set, batch_size=args.eval_batch_size, shuffle=False, collate_fn=collate_fn)
 
     # Step 3: Build Model
     #args.llm_model_path = llama_model_path[args.llm_model_name]
     model = GraphLLM(args)#load_model[args.model_name](graph_type=dataset.graph_type, args=args, init_prompt=dataset.prompt)
-    breakpoint()
+    
     # Step 4 Set Optimizer
     params = [p for _, p in model.named_parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(
@@ -50,7 +53,7 @@ def main(args):
     progress_bar = tqdm(range(num_training_steps))
     best_val_loss = float('inf')
 
-    for epoch in range(args.num_epochs):
+    """for epoch in range(args.num_epochs):
 
         model.train()
         epoch_loss, accum_loss = 0., 0.
@@ -103,7 +106,7 @@ def main(args):
         #    break
 
     torch.cuda.empty_cache()
-    torch.cuda.reset_max_memory_allocated()
+    torch.cuda.reset_max_memory_allocated()"""
 
     # Step 5. Evaluating
     os.makedirs(f'{args.output_dir}/{args.dataset}', exist_ok=True)
@@ -141,15 +144,15 @@ def parse_args_llama():
     parser.add_argument("--patience", type=float, default=2)
 
     # Model Training
-    parser.add_argument("--batch_size", type=int, default=8)
+    parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--grad_steps", type=int, default=2)
 
     # Learning Rate Scheduler
-    parser.add_argument("--num_epochs", type=int, default=1000)
+    parser.add_argument("--num_epochs", type=int, default=10)
     parser.add_argument("--warmup_epochs", type=float, default=1)
 
     # Inference
-    parser.add_argument("--eval_batch_size", type=int, default=16)
+    parser.add_argument("--eval_batch_size", type=int, default=1)
 
     # LLM related
     parser.add_argument("--llm_model_name", type=str, default='7b')

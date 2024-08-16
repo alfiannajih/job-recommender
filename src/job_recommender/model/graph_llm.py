@@ -1,6 +1,7 @@
 import contextlib
 import torch
 import torch.nn as nn
+from torch_geometric.nn.pool import global_mean_pool
 from torch.cuda.amp import autocast as autocast
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from job_recommender.model.gnn import GAT
@@ -109,9 +110,10 @@ class GraphLLM(torch.nn.Module):
         graphs = samples['graph']
         graphs = graphs.to(self.model.device)
         n_embeds, _ = self.graph_encoder(graphs.x, graphs.edge_index.long(), graphs.edge_attr)
-
+        
         # mean pooling
-        g_embeds = n_embeds.mean(dim=0).unsqueeze(0)
+        # g_embeds = n_embeds.mean(dim=0).unsqueeze(0)
+        g_embeds = global_mean_pool(n_embeds, graphs.batch)
 
         return g_embeds
 
