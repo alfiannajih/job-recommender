@@ -284,7 +284,7 @@ class KnowledgeGraphRetrievalPipeline(KnowledgeGraphRetrieval):
 
     def job_triples_retrieval(self, resume, desc, top_emb=5, top_rerank=3):
         query = ["{}: {}".format(k, v) for k, v in resume.items()] + [desc]
-        query_emb = self.embedding_model.encode(query).mean(axis=0).tolist()
+        query_emb = self.embedding_model.encode(query, show_progress_bar=False).mean(axis=0).tolist()
 
         relations = self.query_relationship_from_node(query_emb, top_emb)
         relation_ids = self.rerank_retrieved_relationship(relations, desc, top_rerank)
@@ -305,10 +305,11 @@ class KnowledgeGraphRetrievalPipeline(KnowledgeGraphRetrieval):
 
     def triples_retrieval(self, resume, desc, top_emb=5, top_rerank=100):
         query = resume + [desc]
-        query_emb = self.embedding_model.encode(query).mean(axis=0).tolist()
+        query_emb = self.embedding_model.encode(query, show_progress_bar=False).mean(axis=0).tolist()
 
         relations = self.query_relationship_from_node(query_emb, top_emb)
-        relation_ids = self.rerank_retrieved_relationship(relations, desc, top_rerank)
+        #relation_ids = self.rerank_retrieved_relationship(relations, desc, top_rerank)
+        relation_ids = [r["rel_id"] for r in relations]
 
         tail_ids = self.neo4j_connection.get_tail_node(relation_ids)
         tail_connection = self.neo4j_connection.get_tail_connection_from_head(tail_ids)
@@ -351,7 +352,10 @@ class KnowledgeGraphRetrievalPipeline(KnowledgeGraphRetrieval):
                 tail_nodes.append(rec.get("t_name"))
                 edge_attr.append(rec.get("r_embedding"))
 
-                textualized_prop = "{}\nJob Description: {}".format(rec.get("r_type"), rec.get("job_description"))
+                if rec.get("job_description") != None:
+                    textualized_prop = "{}\nJob Description: {}".format(rec.get("r_type"), rec.get("job_description"))
+                else:
+                    textualized_prop = rec.get("r_type")
 
                 edges.append({
                     "src": node_mapping[rec.get("h_name")],
@@ -373,7 +377,7 @@ class KnowledgeGraphRetrievalPipeline(KnowledgeGraphRetrieval):
             #nodes.to_csv("dataset/samples/sample_1/node.csv", index=False)
             #edges.to_csv("dataset/samples/sample_1/edge.csv", index=False)
             
-            subgraph, desc = retrieval_via_pcst(graph, query_emb, nodes, edges, topk=3, topk_e=5, cost_e=0.5)
+            subgraph, desc = retrieval_via_pcst(graph, query_emb, nodes, edges, topk=10, topk_e=3, cost_e=0.5)
 
             return subgraph, desc
             #torch.save(subg, 'dataset/samples/sample_1/subg.pt')

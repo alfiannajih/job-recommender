@@ -2,6 +2,8 @@ import argparse
 import sys
 import os
 import pathlib
+import gc
+import torch
 
 sys.path.append(str(pathlib.Path(os.path.dirname(os.path.realpath(__file__)), "src")))
 
@@ -9,10 +11,15 @@ from job_recommender import logger
 from job_recommender.pipeline.knowledge_graph import (
     KnowledgeGraphConstructionPipeline,
     KnowledgeGraphIndexingPipeline,
+    KnowledgeGraphRetrievalPipeline,
     PrepareRawDatasetPipeline
 )
+from job_recommender.pipeline.resume_dataset import PreprocessedResumeDatasetPipeline
 from job_recommender.config.configuration import ConfigurationManager
 from job_recommender.dataset.neo4j_connection import Neo4JConnection
+
+gc.collect()
+torch.cuda.empty_cache()
 
 def main(args):
     config = ConfigurationManager()
@@ -46,10 +53,22 @@ def main(args):
         kg_indexing_pipeline.knowledge_graph_indexing_pipeline()
         stage += 1
 
+    if args.preprocess_resume_dataset:
+        logger.info("-------Stage {}: Preprocess Resume Dataset-------".format(stage))
+        resume_dataset_config = config.get_resume_dataset_config()
+        kg_retrieveal_config = config.get_kg_retrieval_config()
+
+        retriever = KnowledgeGraphRetrievalPipeline(kg_retrieveal_config, neo4j_connection)
+
+        resume_dataset_pipeline = PreprocessedResumeDatasetPipeline(resume_dataset_config, neo4j_connection, retriever)
+        resume_dataset_pipeline.retrieve_batch_graph()
+        stage += 1
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--preprocess_raw_dataset", action="store_true", help="")
+    parser.add_argument("--preprocess_resume_dataset", action="store_true", help="")
     parser.add_argument("--construct_kg", action="store_true", help="")
     parser.add_argument("--index_kg", action="store_true", help="")
 

@@ -298,7 +298,7 @@ class KnowledgeGraphConstruction:
         # Get absolute path of the csv file
         csv_path = pathlib.Path(ABSOLUTE_PATH, path)
         csv_path = str(pathlib.PurePosixPath(csv_path)).replace(" ", "%20")
-
+        
         # Load the CSV files to create relations in Neo4j Database
         with self.neo4j_connection.get_session() as session:
             session.run(

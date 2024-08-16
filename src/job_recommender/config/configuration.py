@@ -75,6 +75,11 @@ class RawDatasetConfig:
     preprocessed_path: str
 
 @dataclass(frozen=True)
+class ResumeDatasetConfig:
+    input_dir: str
+    resume_dir: str
+
+@dataclass(frozen=True)
 class SyntheticDatasetConfig:
     desc_prompt_system: str
     desc_prompt_user: str
@@ -232,6 +237,16 @@ class ConfigurationManager:
         )
 
         return raw_dataset_config
+    
+    def get_resume_dataset_config(self) -> ResumeDatasetConfig:
+        config = self.config.resume_dataset
+
+        resume_dataset_config = ResumeDatasetConfig(
+            input_dir=config.input_dir,
+            resume_dir=config.resume_dir
+        )
+
+        return resume_dataset_config
 
     def get_synthetic_dataset_config(self) -> SyntheticDatasetConfig:
         config = self.config.synthetic_dataset
