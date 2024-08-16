@@ -32,7 +32,7 @@ class TrainingPipeline:
 
         params = [p for _, p in self.model.named_parameters() if p.requires_grad]
         self.optimizer = torch.optim.AdamW(
-            [{'params': params, 'lr': self.config.learning_rate, 'weight_decay': self.config.weight_decay}, ],
+            [{'params': params, 'lr': float(self.config.learning_rate), 'weight_decay': float(self.config.weight_decay)}, ],
             betas=(0.9, 0.95)
         )
 
@@ -43,6 +43,7 @@ class TrainingPipeline:
         global_train_steps = self.config.num_epochs * len(self.train_loader)
         best_val_loss = float('inf')
 
+        global_step = 0
         for epoch in range(self.config.num_epochs):
             self.model.train()
             epoch_loss, accum_loss = 0., 0.
@@ -55,17 +56,18 @@ class TrainingPipeline:
                 clip_grad_norm_(self.optimizer.param_groups[0]['params'], 0.1)
 
                 if (step + 1) % self.config.grad_steps == 0:
-                    adjust_learning_rate(self.optimizer.param_groups[0], self.config.learning_rate, step / len(self.train_loader) + epoch, self.config)
+                    adjust_learning_rate(self.optimizer.param_groups[0], float(self.config.learning_rate), step / len(self.train_loader) + epoch, self.config)
 
                 self.optimizer.step()
                 epoch_loss, accum_loss = epoch_loss + loss.item(), accum_loss + loss.item()
 
+                global_step += 1
                 if (step + 1) % self.config.grad_steps == 0:
                     lr = self.optimizer.param_groups[0]["lr"]
-                    logger.info("Lr: {}\tAccum Loss: {}".format(lr, accum_loss / self.config.grad_steps))
+                    logger.info("Step: {}|{}\tLr: {}\tAccum Loss: {}".format(global_step, global_train_steps, lr, accum_loss / self.config.grad_steps))
                     accum_loss = 0.
-                
-                logger.info(f"Epoch: {epoch}|{self.config.num_epochs}\tTrain Loss (Epoch Mean): {epoch_loss / len(self.train_loader)}")
+
+            logger.info(f"Epoch: {epoch}|{self.config.num_epochs}\tStep: {global_step}|{global_train_steps}\tTrain Loss (Epoch Mean): {epoch_loss / len(self.train_loader)}")
             
             best_val_loss = self._validation(epoch, best_val_loss)
     
