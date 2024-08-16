@@ -1,13 +1,17 @@
 import torch
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import random_split, DataLoader
+import pandas as pd
+import json
+import os
 
 from job_recommender.dataset.resume_dataset import ResumeDataset
 from job_recommender.config.configuration import HyperparametersConfig
 from job_recommender.utils.common import (
     seed_everything,
     adjust_learning_rate,
-    _save_checkpoint
+    _save_checkpoint,
+    _reload_best_model
 )
 from job_recommender.utils.dataset import collate_fn
 from job_recommender.model.graph_llm import GraphLLM
@@ -22,7 +26,7 @@ class TrainingPipeline:
         self.config = config
         seed_everything(self.config.seed)
 
-        train_set, val_set, test_set = random_split(dataset, [0.8, 0.1, 0.1])
+        train_set, val_set, test_set, _ = random_split(dataset, [0.01, 0.01, 0.01, 0.97])
         
         self.train_loader = DataLoader(train_set, batch_size=self.config.batch_size, shuffle=True, collate_fn=collate_fn)
         self.val_loader = DataLoader(val_set, batch_size=self.config.batch_size, shuffle=False, collate_fn=collate_fn)
@@ -64,10 +68,10 @@ class TrainingPipeline:
                 global_step += 1
                 if (step + 1) % self.config.grad_steps == 0:
                     lr = self.optimizer.param_groups[0]["lr"]
-                    logger.info("Step: {}|{}\tLr: {}\tAccum Loss: {}".format(global_step, global_train_steps, lr, accum_loss / self.config.grad_steps))
+                    logger.info("[Training] Epoch: {}|{}\tStep: {}|{}\tLr: {}\tAccum Loss: {}".format(epoch, self.config.num_epochs, global_step, global_train_steps, lr, accum_loss / self.config.grad_steps))
                     accum_loss = 0.
 
-            logger.info(f"Epoch: {epoch}|{self.config.num_epochs}\tStep: {global_step}|{global_train_steps}\tTrain Loss (Epoch Mean): {epoch_loss / len(self.train_loader)}")
+            logger.info(f"[Training] Epoch: {epoch}|{self.config.num_epochs}\tStep: {global_step}|{global_train_steps}\tTrain Loss (Epoch Mean): {epoch_loss / len(self.train_loader)}")
             
             best_val_loss = self._validation(epoch, best_val_loss)
     
@@ -80,13 +84,26 @@ class TrainingPipeline:
                 loss = self.model(batch)
                 val_loss += loss.item()
             val_loss = val_loss/len(self.val_loader)
-            logger.info(f"Epoch: {epoch}|{self.config.num_epochs}: Val Loss: {val_loss}")
+            logger.info(f"[Validation] Epoch: {epoch}|{self.config.num_epochs}\tCurrent Val Loss: {val_loss}")
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             _save_checkpoint(self.model, self.optimizer, epoch, self.config, is_best=True)
             best_epoch = epoch
 
-        logger.info(f'Epoch {epoch} Val Loss {val_loss} Best Val Loss {best_val_loss} Best Epoch {best_epoch}')
+            logger.info(f'[Validation] Epoch: {epoch}|{self.config.num_epochs}\tBest Val Loss: {best_val_loss}\tBest Epoch {best_epoch}')
 
         return best_val_loss
+
+    def evaluation(self):
+        self.model = _reload_best_model(self.model, self.config)
+        self.model.eval()
+        path = os.path.join(self.config.output_dir, "generated.jsonl")
+
+        with open(path, "w") as f:
+            for step, batch in enumerate(self.test_loader):
+                with torch.no_grad():
+                    output = self.model.inference(batch)
+                    df = pd.DataFrame(output)
+                    for _, row in df.iterrows():
+                        f.write(json.dumps(dict(row)) + "\n")

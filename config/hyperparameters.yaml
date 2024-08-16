@@ -5,10 +5,10 @@ learning_rate: 1e-5
 weight_decay: 0.05
 patience: 2
 batch_size: 1
-grad_steps: 10
+grad_steps: 2
 
 # Learning Rate Scheduler
-num_epochs: 10
+num_epochs: 3
 warmup_epochs: 1
 
 # Validation

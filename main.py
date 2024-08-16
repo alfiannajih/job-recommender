@@ -75,6 +75,7 @@ def main(args):
 
         trainer = TrainingPipeline(train_config, dataset)
         trainer.train()
+        trainer.evaluation()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

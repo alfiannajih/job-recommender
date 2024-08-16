@@ -29,11 +29,11 @@ def get_rerank_model(path):
 
     return model
 
-def _save_checkpoint(model, optimizer, cur_epoch, args, is_best=False):
+def _save_checkpoint(model, optimizer, cur_epoch, config, is_best=False):
     """
     Save the checkpoint at the current epoch.
     """
-    os.makedirs(f'{args.output_dir}/{args.dataset}', exist_ok=True)
+    os.makedirs(f'{config.output_dir}', exist_ok=True)
 
     param_grad_dic = {
         k: v.requires_grad for (k, v) in model.named_parameters()
@@ -46,12 +46,11 @@ def _save_checkpoint(model, optimizer, cur_epoch, args, is_best=False):
     save_obj = {
         "model": state_dict,
         "optimizer": optimizer.state_dict(),
-        "config": args,
+        "config": config,
         "epoch": cur_epoch,
     }
     #path = f'{args.output_dir}/{args.dataset}/model_name_{args.model_name}_llm_model_name_{args.llm_model_name}_llm_frozen_{args.llm_frozen}_max_txt_len_{args.max_txt_len}_max_new_tokens_{args.max_new_tokens}_gnn_model_name_{args.gnn_model_name}_patience_{args.patience}_num_epochs_{args.num_epochs}_seed{args.seed}_checkpoint_{"best" if is_best else cur_epoch}.pth'
-    path = "{}/{}/{}_model.pth".format(args.output_dir, args.dataset, "best" if is_best else cur_epoch)
-    print("Saving checkpoint at epoch {} to {}.".format(cur_epoch, path))
+    path = "{}/{}_model.pth".format(config.output_dir, "best" if is_best else cur_epoch)
     torch.save(save_obj, path)
 
 
@@ -59,10 +58,10 @@ def _reload_best_model(model, args):
     """
     Load the best checkpoint for evaluation.
     """
-    checkpoint_path = f'{args.output_dir}/{args.dataset}/model_name_{args.model_name}_llm_model_name_{args.llm_model_name}_llm_frozen_{args.llm_frozen}_max_txt_len_{args.max_txt_len}_max_new_tokens_{args.max_new_tokens}_gnn_model_name_{args.gnn_model_name}_patience_{args.patience}_num_epochs_{args.num_epochs}_seed{args.seed}_checkpoint_best.pth'
+    #checkpoint_path = f'{args.output_dir}/{args.dataset}/model_name_{args.model_name}_llm_model_name_{args.llm_model_name}_llm_frozen_{args.llm_frozen}_max_txt_len_{args.max_txt_len}_max_new_tokens_{args.max_new_tokens}_gnn_model_name_{args.gnn_model_name}_patience_{args.patience}_num_epochs_{args.num_epochs}_seed{args.seed}_checkpoint_best.pth'
 
-    print("Loading checkpoint from {}.".format(checkpoint_path))
-
+    #print("Loading checkpoint from {}.".format(checkpoint_path))
+    checkpoint_path = os.path.join(args.output_dir, "best_model.pth")
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
     model.load_state_dict(checkpoint["model"], strict=False)
 
