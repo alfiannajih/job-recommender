@@ -51,11 +51,12 @@ class GraphLLM(torch.nn.Module):
             low_cpu_mem_usage=True,
             **kwargs
         )
-
+        
         if args.llm_frozen == 'True':
             print("Freezing LLAMA!")
             for name, param in model.named_parameters():
                 param.requires_grad = False
+            model = model.type(torch.float32)
         else:
             print("Training LLAMA with LORA!")
             # model = prepare_model_for_int8_training(model)
@@ -76,9 +77,12 @@ class GraphLLM(torch.nn.Module):
                 task_type="CAUSAL_LM",
             )
             model = get_peft_model(model, config)
+            
 
         self.model = model
         print('Finish loading LLAMA!')
+
+        self.word_embedding = self.model.model.get_input_embeddings()
 
         self.graph_encoder = GAT(
             in_channels=args.gnn_in_dim,
@@ -92,10 +96,8 @@ class GraphLLM(torch.nn.Module):
         self.projector = nn.Sequential(
             nn.Linear(args.gnn_hidden_dim, 2048),
             nn.Sigmoid(),
-            nn.Linear(2048, 4096),
+            nn.Linear(2048, self.word_embedding.embedding_dim),
         ).to(self.model.device)
-
-        self.word_embedding = self.model.model.get_input_embeddings()
 
     @property
     def device(self):
@@ -168,8 +170,9 @@ class GraphLLM(torch.nn.Module):
         label_input_ids = torch.tensor(batch_label_input_ids).to(self.model.device)
 
         with self.maybe_autocast():
+            breakpoint()
             outputs = self.model(
-                inputs_embeds=inputs_embeds.type(torch.float16),
+                inputs_embeds=inputs_embeds,
                 attention_mask=attention_mask,
                 return_dict=True,
                 labels=label_input_ids,
