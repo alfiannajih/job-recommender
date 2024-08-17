@@ -7,6 +7,10 @@ RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /app
-RUN pip install -r requirements.txt
+
+ARG DAGSHUB_KEY
+RUN dvc remote modify origin --local access_key_id ${DAGSHUB_KEY}
+RUN dvc remote modify origin --local secret_access_key ${DAGSHUB_KEY}
+RUN dvc pull
 
 CMD ["python", "main.py", "--train"]

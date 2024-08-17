@@ -1,8 +1,14 @@
 version: '3'
 
 services:
-  training:
-    build: .
+  training_pipeline:
+    image: training_compfest:v1
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - DAGSHUB_KEY=${DAGSHUB_KEY}
+
     environment:
       - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
       - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME}

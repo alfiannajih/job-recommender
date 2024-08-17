@@ -1,10 +1,13 @@
+import os
+from dotenv import load_dotenv
 from dataclasses import dataclass, asdict
 
 from job_recommender.utils.common import read_yaml
 
 CONFIG_PATH = "config/config.yaml"
 HYPERPARAMS_PATH = "config/hyperparameters.yaml"
-SECRET_PATH = "config/secrets.yaml"
+
+load_dotenv()
 
 @dataclass(frozen=True)
 class Neo4jConfig:
@@ -140,8 +143,7 @@ class ConfigurationManager:
     def __init__(
             self,
             config_path: str = CONFIG_PATH,
-            hyperparams_path: str = HYPERPARAMS_PATH,
-            secret_path: str = SECRET_PATH
+            hyperparams_path: str = HYPERPARAMS_PATH
         ):
         """
         Initializes the instance with config.yaml.
@@ -151,7 +153,6 @@ class ConfigurationManager:
         """
         self.config = read_yaml(config_path)
         self.hp = read_yaml(hyperparams_path)
-        self.secret = read_yaml(secret_path)
 
     def get_neo4j_connection_config(self) -> Neo4jConfig:
         """
@@ -160,13 +161,12 @@ class ConfigurationManager:
         Returns:
             Neo4jConfig: An instance of Neo4jConfig with the connection details.
         """
-        config = self.secret.neo4j_connection
 
         connection_config = Neo4jConfig(
-            neo4j_uri=config.neo4j_uri,
-            neo4j_user=config.neo4j_user,
-            neo4j_password=config.neo4j_password,
-            neo4j_db=config.neo4j_db
+            neo4j_uri=os.getenv("NEO4J_URI"),
+            neo4j_user=os.getenv("NEO4J_USER"),
+            neo4j_password=os.getenv("NEO4J_PASSWORD"),
+            neo4j_db=os.getenv("NEO4J_DB")
         )
 
         return connection_config

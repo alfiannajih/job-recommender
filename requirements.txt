@@ -13,3 +13,4 @@ torch_geometric==2.5.3
 transformers==4.43.3
 sentencepiece==0.2.0
 mlflow==2.15.1
+dvc==3.53.0
