@@ -15,12 +15,12 @@ warmup_epochs: 1
 eval_batch_size: 1
 
 # LLM related
-llm_model_path: 'yujiepan/llama-3-tiny-random'
-llm_frozen: 'False'
+llm_model_path: 'meta-llama/Llama-2-7b-hf'
+llm_frozen: 'True'
 llm_num_virtual_tokens: 10
 output_dir: 'output'
-max_txt_len: 2048
-max_new_tokens: 1024
+max_txt_len: 1024
+max_new_tokens: 512
 
 # GNN related
 gnn_num_layers: 4

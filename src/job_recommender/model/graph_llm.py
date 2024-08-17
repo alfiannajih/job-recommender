@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+import os
 import contextlib
 import torch
 import torch.nn as nn
@@ -18,6 +20,8 @@ EOS = '</s>'
 
 IGNORE_INDEX = -100
 
+load_dotenv()
+hf_token = os.environ.get('HF_TOKEN')
 
 class GraphLLM(torch.nn.Module):
 
@@ -42,6 +46,7 @@ class GraphLLM(torch.nn.Module):
 
         model = AutoModelForCausalLM.from_pretrained(
             args.llm_model_path,
+            token=hf_token,
             torch_dtype=torch.float16,
             low_cpu_mem_usage=True,
             **kwargs
@@ -87,7 +92,7 @@ class GraphLLM(torch.nn.Module):
         self.projector = nn.Sequential(
             nn.Linear(args.gnn_hidden_dim, 2048),
             nn.Sigmoid(),
-            nn.Linear(2048, 4),
+            nn.Linear(2048, 4096),
         ).to(self.model.device)
 
         self.word_embedding = self.model.model.get_input_embeddings()
@@ -164,7 +169,7 @@ class GraphLLM(torch.nn.Module):
 
         with self.maybe_autocast():
             outputs = self.model(
-                inputs_embeds=inputs_embeds,
+                inputs_embeds=inputs_embeds.type(torch.float16),
                 attention_mask=attention_mask,
                 return_dict=True,
                 labels=label_input_ids,
