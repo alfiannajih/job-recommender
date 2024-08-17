@@ -4,6 +4,7 @@ from torch.utils.data import random_split, DataLoader
 import pandas as pd
 import json
 import os
+import mlflow
 
 from job_recommender.dataset.resume_dataset import ResumeDataset
 from job_recommender.config.configuration import HyperparametersConfig
@@ -29,8 +30,8 @@ class TrainingPipeline:
         train_set, val_set, test_set, _ = random_split(dataset, [0.01, 0.01, 0.01, 0.97])
         
         self.train_loader = DataLoader(train_set, batch_size=self.config.batch_size, shuffle=True, collate_fn=collate_fn)
-        self.val_loader = DataLoader(val_set, batch_size=self.config.batch_size, shuffle=False, collate_fn=collate_fn)
-        self.test_loader = DataLoader(test_set, batch_size=self.config.eval_batch_size, shuffle=False, collate_fn=collate_fn)
+        self.val_loader = DataLoader(val_set, batch_size=self.config.batch_size, shuffle=True, collate_fn=collate_fn)
+        self.test_loader = DataLoader(test_set, batch_size=self.config.eval_batch_size, shuffle=True, collate_fn=collate_fn)
 
         self.model = GraphLLM(self.config)
 
@@ -44,37 +45,70 @@ class TrainingPipeline:
         logger.info(f"Trainable params: {trainable_params}\tAll params: {all_param}\tTrainable ratio: {100 * trainable_params / all_param}")
 
     def train(self):
+        mlflow.set_experiment("Compfest: Job Recommender")
+
         global_train_steps = self.config.num_epochs * len(self.train_loader)
         best_val_loss = float('inf')
 
         global_step = 0
-        for epoch in range(self.config.num_epochs):
-            self.model.train()
-            epoch_loss, accum_loss = 0., 0.
+        with mlflow.start_run() as run:
+            mlflow.log_params(self.config.dict())
+            for epoch in range(self.config.num_epochs):
+                self.model.train()
+                epoch_loss, accum_loss = 0., 0.
 
-            for step, batch in enumerate(self.train_loader):
-                self.optimizer.zero_grad()
-                loss = self.model(batch)
-                loss.backward()
+                for step, batch in enumerate(self.train_loader):
+                    self.optimizer.zero_grad()
+                    loss = self.model(batch)
+                    loss.backward()
 
-                clip_grad_norm_(self.optimizer.param_groups[0]['params'], 0.1)
+                    clip_grad_norm_(self.optimizer.param_groups[0]['params'], 0.1)
 
-                if (step + 1) % self.config.grad_steps == 0:
-                    adjust_learning_rate(self.optimizer.param_groups[0], float(self.config.learning_rate), step / len(self.train_loader) + epoch, self.config)
+                    if (step + 1) % self.config.grad_steps == 0:
+                        adjust_learning_rate(self.optimizer.param_groups[0], float(self.config.learning_rate), step / len(self.train_loader) + epoch, self.config)
 
-                self.optimizer.step()
-                epoch_loss, accum_loss = epoch_loss + loss.item(), accum_loss + loss.item()
+                    self.optimizer.step()
+                    epoch_loss, accum_loss = epoch_loss + loss.item(), accum_loss + loss.item()
 
-                global_step += 1
-                if (step + 1) % self.config.grad_steps == 0:
-                    lr = self.optimizer.param_groups[0]["lr"]
-                    logger.info("[Training] Epoch: {}|{}\tStep: {}|{}\tLr: {}\tAccum Loss: {}".format(epoch, self.config.num_epochs, global_step, global_train_steps, lr, accum_loss / self.config.grad_steps))
-                    accum_loss = 0.
+                    global_step += 1
+                    if (step + 1) % self.config.grad_steps == 0:
+                        lr = self.optimizer.param_groups[0]["lr"]
+                        logger.info("[Training] Epoch: {}|{}\tStep: {}|{}\tLr: {}\tAccum Loss: {}".format(epoch, self.config.num_epochs, global_step, global_train_steps, lr, accum_loss / self.config.grad_steps))
+                        accum_loss = 0.
+                    
+                    if global_step%4 == 0:
+                        self._validation_step(4, global_step)
 
-            logger.info(f"[Training] Epoch: {epoch}|{self.config.num_epochs}\tStep: {global_step}|{global_train_steps}\tTrain Loss (Epoch Mean): {epoch_loss / len(self.train_loader)}")
-            
-            best_val_loss = self._validation(epoch, best_val_loss)
+                logger.info(f"[Training] Epoch: {epoch}|{self.config.num_epochs}\tStep: {global_step}|{global_train_steps}\tTrain Loss (Epoch Mean): {epoch_loss / len(self.train_loader)}")
+
+                best_val_loss = self._validation(epoch, best_val_loss)
     
+    def _validation_step(self, batches, step):
+        train_loss = 0
+        val_loss = 0
+        self.model.eval()
+
+        with torch.no_grad():
+            for i, batch in enumerate(self.val_loader):
+                loss = self.model(batch)
+                val_loss += loss.item()
+                if (i+1)%batches == 0:
+                    break
+                    
+            for i, batch in enumerate(self.train_loader):
+                loss = self.model(batch)
+                train_loss += loss.item()
+                if (i+1)%batches == 0:
+                    break
+            train_loss /= batches
+            val_loss /= batches
+            
+            mlflow.log_metric("Training loss", train_loss, step=step)
+            mlflow.log_metric("Validation loss", val_loss, step=step)
+
+        
+        self.model.train()
+
     def _validation(self, epoch, best_val_loss):
         val_loss = 0
         self.model.eval()

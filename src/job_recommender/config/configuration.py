@@ -1,9 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 from job_recommender.utils.common import read_yaml
 
 CONFIG_PATH = "config/config.yaml"
 HYPERPARAMS_PATH = "config/hyperparameters.yaml"
+SECRET_PATH = "config/secrets.yaml"
 
 @dataclass(frozen=True)
 class Neo4jConfig:
@@ -108,11 +109,10 @@ class HyperparametersConfig:
     num_epochs: int
     warmup_epochs: int
 
-    # Validation
+    # Evaluation
     eval_batch_size: int
 
     # LLM related
-    llm_model_name: str
     llm_model_path: str
     llm_frozen: bool
     llm_num_virtual_tokens: int
@@ -121,12 +121,14 @@ class HyperparametersConfig:
     max_new_tokens: int
 
     # GNN related
-    gnn_model_name: str
     gnn_num_layers: int
     gnn_in_dim: int
     gnn_hidden_dim: int
     gnn_num_heads: int
     gnn_dropout: float
+
+    def dict(self):
+        return {k: str(v) for k, v in asdict(self).items()}
 
 class ConfigurationManager:
     """
@@ -138,7 +140,8 @@ class ConfigurationManager:
     def __init__(
             self,
             config_path: str = CONFIG_PATH,
-            hyperparams_path: str = HYPERPARAMS_PATH
+            hyperparams_path: str = HYPERPARAMS_PATH,
+            secret_path: str = SECRET_PATH
         ):
         """
         Initializes the instance with config.yaml.
@@ -148,6 +151,7 @@ class ConfigurationManager:
         """
         self.config = read_yaml(config_path)
         self.hp = read_yaml(hyperparams_path)
+        self.secret = read_yaml(secret_path)
 
     def get_neo4j_connection_config(self) -> Neo4jConfig:
         """
@@ -156,7 +160,7 @@ class ConfigurationManager:
         Returns:
             Neo4jConfig: An instance of Neo4jConfig with the connection details.
         """
-        config = self.config.neo4j_connection
+        config = self.secret.neo4j_connection
 
         connection_config = Neo4jConfig(
             neo4j_uri=config.neo4j_uri,
@@ -238,7 +242,7 @@ class ConfigurationManager:
         )
 
         return raw_dataset_config
-    
+
     def get_resume_dataset_config(self) -> ResumeDatasetConfig:
         config = self.config.resume_dataset
 
@@ -282,14 +286,12 @@ class ConfigurationManager:
             num_epochs=hp.num_epochs,
             warmup_epochs=hp.warmup_epochs,
             eval_batch_size=hp.eval_batch_size,
-            llm_model_name=hp.llm_model_name,
             llm_model_path=hp.llm_model_path,
             llm_frozen=hp.llm_frozen,
             llm_num_virtual_tokens=hp.llm_num_virtual_tokens,
             output_dir=hp.output_dir,
             max_txt_len=hp.max_txt_len,
             max_new_tokens=hp.max_new_tokens,
-            gnn_model_name=hp.gnn_model_name,
             gnn_num_layers=hp.gnn_num_layers,
             gnn_in_dim=hp.gnn_in_dim,
             gnn_hidden_dim=hp.gnn_hidden_dim,

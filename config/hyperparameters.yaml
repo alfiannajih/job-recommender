@@ -15,7 +15,6 @@ warmup_epochs: 1
 eval_batch_size: 1
 
 # LLM related
-llm_model_name: '7b'
 llm_model_path: 'yujiepan/llama-3-tiny-random'
 llm_frozen: 'False'
 llm_num_virtual_tokens: 10
@@ -24,7 +23,6 @@ max_txt_len: 2048
 max_new_tokens: 1024
 
 # GNN related
-gnn_model_name: 'gt'
 gnn_num_layers: 4
 gnn_in_dim: 768
 gnn_hidden_dim: 1024

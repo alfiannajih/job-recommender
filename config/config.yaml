@@ -1,9 +1,3 @@
-neo4j_connection:
-  neo4j_uri: neo4j://localhost:7687
-  neo4j_user: neo4j
-  neo4j_password: admin123
-  neo4j_db: neo4j
-
 raw_dataset:
   raw_path: raw_datasets/job_posting
   preprocessed_path: dataset/job_posting
