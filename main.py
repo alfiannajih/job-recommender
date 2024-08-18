@@ -4,6 +4,7 @@ import os
 import pathlib
 import gc
 import torch
+import mlflow
 
 sys.path.append(str(pathlib.Path(os.path.dirname(os.path.realpath(__file__)), "src")))
 
@@ -73,9 +74,17 @@ def main(args):
 
         dataset = ResumeDataset(train_config.input_dir)
 
+        if torch.cuda.is_available():
+            logger.info("Using cuda")
+        else:
+            logger.info("Using cpu")
+
+        mlflow.set_experiment("Compfest: Job Recommender")
         trainer = TrainingPipeline(train_config, dataset)
-        trainer.train()
-        trainer.evaluation()
+        
+        with mlflow.start_run() as run:
+            trainer.train()
+            trainer.evaluation()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

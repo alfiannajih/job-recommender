@@ -1,3 +1,4 @@
+from job_recommender import logger
 from dotenv import load_dotenv
 import os
 import contextlib
@@ -14,9 +15,13 @@ from peft import (
     prepare_model_for_kbit_training
 )
 
-BOS = '<s>[INST]'
-EOS_USER = '[/INST]'
-EOS = '</s>'
+#BOS = '<s>[INST]'
+#EOS_USER = '[/INST]'
+#EOS = '</s>'
+
+BOS = "<start_of_turn>user"
+EOS_USER = "<end_of_turn>\n<start_of_turn>model"
+EOS = "<end_of_turn>"
 
 IGNORE_INDEX = -100
 
@@ -34,32 +39,35 @@ class GraphLLM(torch.nn.Module):
         self.max_txt_len = args.max_txt_len
         self.max_new_tokens = args.max_new_tokens
 
-        print('Loading LLAMA')
+        logger.info('Loading LLAMA')
         kwargs = {
             "device_map": "auto",
+            "offload_folder": "offload",
             "revision": "main",
         }
 
         self.tokenizer = AutoTokenizer.from_pretrained(args.llm_model_path, use_fast=False, revision=kwargs["revision"])
         self.tokenizer.pad_token_id = 0
         self.tokenizer.padding_side = 'left'
-
+        
         model = AutoModelForCausalLM.from_pretrained(
             args.llm_model_path,
             token=hf_token,
             torch_dtype=torch.float16,
             low_cpu_mem_usage=True,
+            attn_implementation="eager",
             **kwargs
         )
         
         if args.llm_frozen == 'True':
-            print("Freezing LLAMA!")
+            logger.info("Freezing LLAMA!")
             for name, param in model.named_parameters():
                 param.requires_grad = False
             model = model.type(torch.float32)
         else:
-            print("Training LLAMA with LORA!")
+            logger.info("Training LLAMA with LORA!")
             # model = prepare_model_for_int8_training(model)
+            breakpoint()
             model = prepare_model_for_kbit_training(model)
             lora_r: int = 8
             lora_alpha: int = 16
@@ -80,7 +88,7 @@ class GraphLLM(torch.nn.Module):
             
 
         self.model = model
-        print('Finish loading LLAMA!')
+        logger.info('Finish loading LLAMA!')
 
         self.word_embedding = self.model.model.get_input_embeddings()
 
@@ -170,7 +178,6 @@ class GraphLLM(torch.nn.Module):
         label_input_ids = torch.tensor(batch_label_input_ids).to(self.model.device)
 
         with self.maybe_autocast():
-            breakpoint()
             outputs = self.model(
                 inputs_embeds=inputs_embeds,
                 attention_mask=attention_mask,

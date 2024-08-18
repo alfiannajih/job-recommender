@@ -1,0 +1,6 @@
+logs/
+dataset/job_posting
+dataset/resume_dataset
+dataset/samples
+dataset/synthetic_dataset
+venv/
