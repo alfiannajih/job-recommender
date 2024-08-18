@@ -46,7 +46,7 @@ class GraphLLM(torch.nn.Module):
             "revision": "main",
         }
 
-        self.tokenizer = AutoTokenizer.from_pretrained(args.llm_model_path, use_fast=False, revision=kwargs["revision"])
+        self.tokenizer = AutoTokenizer.from_pretrained(args.llm_model_path, use_fast=False, revision=kwargs["revision"], token=hf_token)
         self.tokenizer.pad_token_id = 0
         self.tokenizer.padding_side = 'left'
         
