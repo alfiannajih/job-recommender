@@ -49,12 +49,14 @@ class ResumeDataset(Dataset):
         label = open(Path(path, 'label.txt')).read()
 
         return {
-            'id': index,
             'question': question,
             'label': label,
             'graph': subgraph,
             'desc': desc,
         }
+    
+    def __len__(self):
+        return len(self.listdir)
     
     def __len__(self):
         return len(self.listdir)
