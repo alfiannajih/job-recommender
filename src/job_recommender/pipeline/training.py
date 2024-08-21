@@ -5,8 +5,10 @@ import pandas as pd
 import json
 import os
 import mlflow
+from transformers import AutoConfig, AutoModelForCausalLM
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
-from job_recommender.dataset.resume_dataset import ResumeDataset
+from job_recommender.dataset.resume_dataset import ResumeDataset, collate_fn
 from job_recommender.config.configuration import HyperparametersConfig
 from job_recommender.utils.common import (
     seed_everything,
@@ -14,8 +16,6 @@ from job_recommender.utils.common import (
     _save_checkpoint,
     _reload_best_model
 )
-from job_recommender.utils.dataset import collate_fn
-from job_recommender.model.graph_llm import GraphLLM
 from job_recommender import logger
 
 class TrainingPipeline:
@@ -27,14 +27,29 @@ class TrainingPipeline:
         self.config = config
         seed_everything(self.config.seed)
 
-        train_set, val_set, test_set = random_split(dataset, [0.8, 0.1, 0.1])
+        train_set, val_set, test_set, _ = random_split(dataset, [0.01, 0.01, 0.01, 0.97])
         
-        self.train_loader = DataLoader(train_set, batch_size=self.config.batch_size, shuffle=True, collate_fn=collate_fn)
-        self.val_loader = DataLoader(val_set, batch_size=self.config.batch_size, shuffle=True, collate_fn=collate_fn)
-        self.test_loader = DataLoader(test_set, batch_size=self.config.eval_batch_size, shuffle=True, collate_fn=collate_fn)
-
-        self.model = GraphLLM(self.config)
-
+        self.train_loader = DataLoader(
+            train_set,
+            batch_size=self.config.batch_size,
+            shuffle=True,
+            collate_fn=collate_fn
+        )
+        self.val_loader = DataLoader(
+            val_set,
+            batch_size=self.config.batch_size,
+            shuffle=True,
+            collate_fn=collate_fn
+        )
+        self.test_loader = DataLoader(
+            test_set,
+            batch_size=self.config.eval_batch_size,
+            shuffle=True,
+            collate_fn=collate_fn
+        )
+        
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.quantized_model()
         params = [p for _, p in self.model.named_parameters() if p.requires_grad]
         self.optimizer = torch.optim.AdamW(
             [{'params': params, 'lr': float(self.config.learning_rate), 'weight_decay': float(self.config.weight_decay)}, ],
@@ -43,6 +58,40 @@ class TrainingPipeline:
 
         trainable_params, all_param = self.model.print_trainable_params()
         logger.info(f"Trainable params: {trainable_params}\tAll params: {all_param}\tTrainable ratio: {100 * trainable_params / all_param}")
+
+    def quantized_model(self, debug=True):
+        config = AutoConfig.from_pretrained("alfiannajih/g-retriever", trust_remote_code=True)
+        
+        if debug:
+            config.hidden_size = 8
+            config.intermediate_size = 16
+            config.num_attention_heads = 2
+            config.num_key_value_heads = 1
+            config.num_hidden_layers = 2
+            config.torch_dtype = "bfloat16"
+
+        model = AutoModelForCausalLM.from_pretrained(
+            "alfiannajih/g-retriever",
+            low_cpu_mem_usage=True,
+            config=config,
+            torch_dtype=torch.bfloat16,
+            trust_remote_code=True
+        ).to(self.device)
+
+        model = prepare_model_for_kbit_training(model)
+        lora_config = LoraConfig(
+            r=2,
+            lora_alpha=32,
+            target_modules=[
+                "q_proj",
+                "v_proj"
+            ],
+            lora_dropout=0.05,
+            bias="none",
+            task_type="CAUSAL_LM"
+        )
+
+        self.model = get_peft_model(model, lora_config)
 
     def train(self):
         global_train_steps = self.config.num_epochs * len(self.train_loader)
@@ -54,9 +103,15 @@ class TrainingPipeline:
             self.model.train()
             epoch_loss, accum_loss = 0., 0.
 
-            for step, batch in enumerate(self.train_loader):
+            for step, (input_ids, graph, labels, attention_mask) in enumerate(self.train_loader):
                 self.optimizer.zero_grad()
-                loss = self.model(batch)
+                kwargs = {
+                    "input_ids": input_ids,
+                    "graph": graph,
+                    "labels": labels,
+                    "attention_mask": attention_mask
+                }
+                loss = self.model(**kwargs)
                 loss.backward()
 
                 clip_grad_norm_(self.optimizer.param_groups[0]['params'], 0.1)
@@ -91,14 +146,26 @@ class TrainingPipeline:
         self.model.eval()
 
         with torch.no_grad():
-            for i, batch in enumerate(self.val_loader):
-                loss = self.model(batch)
+            for i, (input_ids, graph, labels, attention_mask) in enumerate(self.val_loader):
+                kwargs = {
+                    "input_ids": input_ids,
+                    "graph": graph,
+                    "labels": labels,
+                    "attention_mask": attention_mask
+                }
+                loss = self.model(**kwargs)
                 val_loss += loss.item()
                 if (i+1)%batches == 0:
                     break
                     
-            for i, batch in enumerate(self.train_loader):
-                loss = self.model(batch)
+            for i, (input_ids, graph, labels, attention_mask) in enumerate(self.train_loader):
+                kwargs = {
+                    "input_ids": input_ids,
+                    "graph": graph,
+                    "labels": labels,
+                    "attention_mask": attention_mask
+                }
+                loss = self.model(**kwargs)
                 train_loss += loss.item()
                 if (i+1)%batches == 0:
                     break
@@ -117,8 +184,14 @@ class TrainingPipeline:
         self.model.eval()
         
         with torch.no_grad():
-            for batch in self.val_loader:
-                loss = self.model(batch)
+            for (input_ids, graph, labels, attention_mask) in self.val_loader:
+                kwargs = {
+                    "input_ids": input_ids,
+                    "graph": graph,
+                    "labels": labels,
+                    "attention_mask": attention_mask
+                }
+                loss = self.model(**kwargs)
                 val_loss += loss.item()
             val_loss = val_loss/len(self.val_loader)
             logger.info(f"[Validation] Epoch: {epoch}|{self.config.num_epochs}\tCurrent Val Loss: {val_loss}")
@@ -138,9 +211,14 @@ class TrainingPipeline:
         path = os.path.join(self.config.output_dir, "generated.jsonl")
 
         with open(path, "w") as f:
-            for step, batch in enumerate(self.test_loader):
+            for step, (input_ids, graph, attention_mask) in enumerate(self.test_loader):
                 with torch.no_grad():
-                    output = self.model.inference(batch)
+                    kwargs = {
+                        "input_ids": input_ids,
+                        "graph": graph,
+                        "attention_mask": attention_mask
+                    }
+                    output = self.model.generate(**kwargs)
                     df = pd.DataFrame(output)
                     for _, row in df.iterrows():
                         f.write(json.dumps(dict(row)) + "\n")

@@ -24,19 +24,23 @@ class GRetrieverModel(LlamaForCausalLM):
             num_layers=config.gnn_num_layers,
             dropout=config.gnn_dropout,
             num_heads=config.gnn_num_heads,
-        )
+        ).to(self.model.dtype)
 
         self.projector = nn.Sequential(
             nn.Linear(config.gnn_hidden_dim, 2048),
             nn.Sigmoid(),
             nn.Linear(2048, self.get_input_embeddings().embedding_dim),
-        )
+        ).to(self.model.dtype)
     
     def encode_graphs(self, graph):
-        n_embeds, _ = self.graph_encoder(graph.x, graph.edge_index.long(), graph.edge_attr)
+        n_embeds, _ = self.graph_encoder(
+            graph.x.to(self.model.dtype),
+            graph.edge_index.long(),
+            graph.edge_attr.to(self.model.dtype)
+        )
 
         # mean pooling
-        g_embeds = global_mean_pool(n_embeds, graph.batch)
+        g_embeds = global_mean_pool(n_embeds, graph.batch.to(n_embeds.device))
 
         return g_embeds
     
@@ -63,13 +67,16 @@ class GRetrieverModel(LlamaForCausalLM):
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if inputs.shape != torch.Size([1, 1]):
+        if (inputs==-1).any():
             # embed bos prompt
-            bos_embeds = self.get_input_embeddings()(torch.tensor(self.config.bos_id))
+            bos_embeds = self.get_input_embeddings()(torch.tensor(
+                self.config.bos_id,
+                device=self.model.device
+            ))
             
             # encode graph
             graph_embeds = self.encode_graphs(graph)
-            graph_embeds = self.projector(graph_embeds)
+            graph_embeds = self.projector(graph_embeds).to(self.model.device)
             
             # prepare for reserved ids (bos+graph)
             non_tokenized_ids = (inputs == -1).nonzero()
@@ -77,10 +84,11 @@ class GRetrieverModel(LlamaForCausalLM):
             
             # embed inputs
             inputs[non_tokenized_shape] = self.config.pad_token_id
-            inputs_embeds = self.get_input_embeddings()(inputs)
+            temp_inputs_embeds = self.get_input_embeddings()(inputs)
             non_tokenized_embeds = torch.cat([bos_embeds.repeat(len(inputs), 1, 1), graph_embeds.unsqueeze(1)], dim=1)
             
             # replace reserved ids with bos+graph
+            inputs_embeds = temp_inputs_embeds.clone()
             inputs_embeds[non_tokenized_shape] = non_tokenized_embeds.view(len(non_tokenized_ids), -1)
         
         else:

@@ -16,3 +16,5 @@ services:
       - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
       - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME}
       - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD}
+    
+    command: ["./service_training/python", "training.py"]

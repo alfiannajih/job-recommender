@@ -18,7 +18,7 @@ eval_batch_size: 1
 llm_model_path: "google/gemma-2-2b-it" #"TinyLlama/TinyLlama_v1.1" #'meta-llama/Llama-2-7b-hf'
 llm_frozen: 'True'
 llm_num_virtual_tokens: 10
-output_dir: "/gcs/compfest" #'output'
+output_dir: 'output'
 max_txt_len: 1024
 max_new_tokens: 256
 
