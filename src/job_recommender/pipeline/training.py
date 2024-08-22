@@ -56,7 +56,7 @@ class TrainingPipeline:
             betas=(0.9, 0.95)
         )
 
-        trainable_params, all_param = self.model.print_trainable_params()
+        trainable_params, all_param = self.print_trainable_params()
         logger.info(f"Trainable params: {trainable_params}\tAll params: {all_param}\tTrainable ratio: {100 * trainable_params / all_param}")
 
     def quantized_model(self, debug=True):
@@ -74,9 +74,10 @@ class TrainingPipeline:
             "alfiannajih/g-retriever",
             low_cpu_mem_usage=True,
             config=config,
+            ignore_mismatched_sizes=True,
             torch_dtype=torch.bfloat16,
             trust_remote_code=True
-        ).to(self.device)
+        )
 
         model = prepare_model_for_kbit_training(model)
         lora_config = LoraConfig(
@@ -222,3 +223,16 @@ class TrainingPipeline:
                     df = pd.DataFrame(output)
                     for _, row in df.iterrows():
                         f.write(json.dumps(dict(row)) + "\n")
+    
+    def print_trainable_params(self):
+        trainable_params = 0
+        all_param = 0
+
+        for _, param in self.model.named_parameters():
+            num_params = param.numel()
+
+            all_param += num_params
+            if param.requires_grad:
+                trainable_params += num_params
+
+        return trainable_params, all_param

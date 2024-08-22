@@ -68,6 +68,19 @@ def main(args):
         resume_dataset_pipeline.retrieve_batch_graph()
         stage += 1
 
+    if args.train:
+        logger.info("-------Stage {}: Training-------".format(stage))
+        train_config = config.get_hyperparameters()
+
+        dataset = ResumeDataset(train_config.input_dir)
+
+        mlflow.set_experiment("Compfest: Job Recommender")
+        trainer = TrainingPipeline(train_config, dataset)
+
+        with mlflow.start_run() as run:
+            trainer.train()
+            trainer.evaluation()
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
