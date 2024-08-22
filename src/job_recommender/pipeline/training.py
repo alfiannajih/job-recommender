@@ -5,7 +5,7 @@ import pandas as pd
 import json
 import os
 import mlflow
-from transformers import AutoConfig, AutoModelForCausalLM
+from transformers import AutoConfig, AutoModelForCausalLM, BitsAndBytesConfig
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
 from job_recommender.dataset.resume_dataset import ResumeDataset, collate_fn
@@ -61,22 +61,19 @@ class TrainingPipeline:
 
     def quantized_model(self, debug=True):
         config = AutoConfig.from_pretrained("alfiannajih/g-retriever", trust_remote_code=True)
-        
-        if debug:
-            config.hidden_size = 8
-            config.intermediate_size = 16
-            config.num_attention_heads = 2
-            config.num_key_value_heads = 1
-            config.num_hidden_layers = 2
-            config.torch_dtype = "bfloat16"
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16
+        )
 
         model = AutoModelForCausalLM.from_pretrained(
             "alfiannajih/g-retriever",
-            low_cpu_mem_usage=True,
             config=config,
-            ignore_mismatched_sizes=True,
-            torch_dtype=torch.bfloat16,
-            trust_remote_code=True
+            device_map="auto",
+            trust_remote_code=True,
+            quantization_config=bnb_config
         )
 
         model = prepare_model_for_kbit_training(model)
