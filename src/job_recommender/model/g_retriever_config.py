@@ -12,7 +12,7 @@ class GRetrieverConfig(LlamaConfig):
         gnn_hidden_dim: int = 1024,
         gnn_num_heads: int = 4,
         gnn_dropout: int = 0,
-        bos_id: list = [128000, 128000, 128006, 882, 128007],
+        bos_id: list = [128000, 128006, 882, 128007],
         **kwargs
     ):
         pretrained_config = LlamaConfig.from_pretrained("NousResearch/Hermes-3-Llama-3.1-8B")
