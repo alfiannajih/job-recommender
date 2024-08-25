@@ -2,9 +2,6 @@ import argparse
 import sys
 import os
 import pathlib
-import gc
-import torch
-import mlflow
 
 sys.path.append(str(pathlib.Path(os.path.dirname(os.path.realpath(__file__)), "src")))
 
@@ -15,14 +12,9 @@ from job_recommender.pipeline.knowledge_graph import (
     KnowledgeGraphRetrievalPipeline,
     PrepareRawDatasetPipeline,
 )
-from job_recommender.dataset.resume_dataset import ResumeDataset
 from job_recommender.pipeline.resume_dataset import PreprocessedResumeDatasetPipeline
-from job_recommender.pipeline.training import TrainingPipeline
 from job_recommender.config.configuration import ConfigurationManager
 from job_recommender.dataset.neo4j_connection import Neo4JConnection
-
-gc.collect()
-torch.cuda.empty_cache()
 
 def main(args):
     config = ConfigurationManager()
@@ -68,19 +60,6 @@ def main(args):
         resume_dataset_pipeline.retrieve_batch_graph()
         stage += 1
 
-    if args.train:
-        logger.info("-------Stage {}: Training-------".format(stage))
-        train_config = config.get_hyperparameters()
-
-        dataset = ResumeDataset(train_config.input_dir)
-
-        mlflow.set_experiment("Compfest: Job Recommender")
-        trainer = TrainingPipeline(train_config, dataset)
-
-        with mlflow.start_run() as run:
-            trainer.train()
-            trainer.evaluation()
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
@@ -88,7 +67,6 @@ if __name__ == "__main__":
     parser.add_argument("--preprocess_resume_dataset", action="store_true", help="")
     parser.add_argument("--construct_kg", action="store_true", help="")
     parser.add_argument("--index_kg", action="store_true", help="")
-    parser.add_argument("--train", action="store_true", help="")
 
     args = parser.parse_args()
 
