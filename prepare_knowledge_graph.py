@@ -9,9 +9,9 @@ from job_recommender import logger
 from job_recommender.pipeline.knowledge_graph import (
     KnowledgeGraphConstructionPipeline,
     KnowledgeGraphIndexingPipeline,
-    KnowledgeGraphRetrievalPipeline,
     PrepareRawDatasetPipeline,
 )
+from job_recommender.pipeline.knowledge_graph_retrieval import KnowledgeGraphRetrievalPipeline
 from job_recommender.pipeline.resume_dataset import PreprocessedResumeDatasetPipeline
 from job_recommender.config.configuration import ConfigurationManager
 from job_recommender.dataset.neo4j_connection import Neo4JConnection
@@ -27,9 +27,18 @@ def main(args):
     if args.preprocess_raw_dataset:
         logger.info("-------Stage {}: Preprocess Raw Dataset-------".format(stage))
         raw_dataset_config = config.get_raw_dataset_config()
-        
+
         raw_dataset_pipeline = PrepareRawDatasetPipeline(raw_dataset_config)
+        raw_dataset_pipeline.download_raw_dataset()
+        
+        if not os.path.exists(os.path.join(raw_dataset_config.preprocessed_path, "nodes")):
+            os.makedirs(os.path.join(raw_dataset_config.preprocessed_path, "nodes"))
+
         raw_dataset_pipeline.node_preprocess_pipeline()
+        
+        if not os.path.exists(os.path.join(raw_dataset_config.preprocessed_path, "relations")):
+            os.makedirs(os.path.join(raw_dataset_config.preprocessed_path, "relations"))
+
         raw_dataset_pipeline.relation_preprocess_pipeline()
         stage += 1
 
@@ -64,9 +73,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--preprocess_raw_dataset", action="store_true", help="")
-    parser.add_argument("--preprocess_resume_dataset", action="store_true", help="")
     parser.add_argument("--construct_kg", action="store_true", help="")
     parser.add_argument("--index_kg", action="store_true", help="")
+    parser.add_argument("--preprocess_resume_dataset", action="store_true", help="")
 
     args = parser.parse_args()
 

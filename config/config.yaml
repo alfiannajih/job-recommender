@@ -1,9 +1,9 @@
 raw_dataset:
-  raw_path: raw_datasets/job_posting
-  preprocessed_path: dataset/job_posting
+  raw_path: raw_dataset
+  preprocessed_path: dataset
 
 kg_construct:
-  input_dir: dataset/job_posting
+  input_dir: dataset
 
 kg_indexing:
   batch_size: 32

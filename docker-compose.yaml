@@ -1,20 +1,29 @@
 version: '3'
 
 services:
-  training_pipeline:
-    image: training_compfest:v1
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - DAGSHUB_KEY=${DAGSHUB_KEY}
-        - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
-        - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME}
-        - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD}
-
+  neo4j:
+    container_name: neo4j
+    image: neo4j:5.22.0
     environment:
-      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
-      - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME}
-      - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD}
-    
-    command: ["python", "main.py", "--train"]
+      - NEO4J_AUTH=neo4j/admin123
+    ports:
+      - 7474:7474
+      - 7687:7687
+    volumes:
+      - ./neo4j_db/data:/data
+      - ./neo4j_db/logs:/logs
+      - ./neo4j_db/import:/var/lib/neo4j/import
+      - ./neo4j_db/plugins:/plugins
+      
+  prepare-kg:
+    container_name: prepare_kg
+    build: .
+    environment:
+      - KAGGLE_USERNAME=${KAGGLE_USERNAME}
+      - KAGGLE_KEY=${KAGGLE_KEY}
+      - NEO4J_URI=${NEO4J_URI}
+      - NEO4J_USER=${NEO4J_USER}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+      - NEO4J_DB=${NEO4J_DB}
+    volumes:
+      - ./neo4j_db/import:/app/dataset

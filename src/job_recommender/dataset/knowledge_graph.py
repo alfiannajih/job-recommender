@@ -1,11 +1,11 @@
 import pathlib
 import os
 import pandas as pd
+import json
 
 from job_recommender.config.configuration import (
     KGConstructConfig,
     KGIndexingConfig,
-    KGRetrievalConfig,
     RawDatasetConfig
 )
 from job_recommender import logger
@@ -18,8 +18,7 @@ from job_recommender.utils.dataset import (
 )
 from job_recommender.utils.common import (
     read_json,
-    get_emb_model,
-    get_rerank_model
+    get_emb_model
 )
 
 # Absolute path of the project folder
@@ -248,7 +247,35 @@ class KnowledgeGraphConstruction:
 
         self.nodes_path = pathlib.Path(self.config.input_dir, "nodes")
         self.relations_path = pathlib.Path(self.config.input_dir, "relations")
+        
+        # self.nodes_path = "nodes"
+        # self.relations_path = "relations"
         self.relations_map_path = pathlib.Path(self.relations_path, "rel_mapping.json")
+
+        with open(self.relations_map_path, "w") as fp:
+            relations_map = {
+                "categorized_as": {
+                    "head": "Company",
+                    "tail": "Size"
+                }, 
+                "offered_by": {
+                    "head": "JobTitle",
+                    "tail": "Company"
+                },
+                "specialized_in": {
+                    "head": "Company",
+                    "tail": "Speciality"
+                },
+                "belongs_to_industry": {
+                    "head": "JobTitle",
+                    "tail": "Industry"
+                },
+                "part_of_industry": {
+                    "head": "Company",
+                    "tail": "Industry"
+                }
+            }
+            json.dump(relations_map, fp)
 
     def load_csv_to_nodes(self, path: str):
         """
@@ -266,8 +293,8 @@ class KnowledgeGraphConstruction:
         merge_statement = self._create_merge_node_statement(path, label)
         
         # Get absolute path of the csv file
-        csv_path = pathlib.Path(ABSOLUTE_PATH, path)
-        csv_path = str(pathlib.PurePosixPath(csv_path)).replace(" ", "%20")
+        # csv_path = pathlib.Path(ABSOLUTE_PATH, path)
+        # csv_path = str(pathlib.PurePosixPath(csv_path)).replace(" ", "%20")
 
         # Load the CSV files to create nodes in Neo4j Database
         with self.neo4j_connection.get_session() as session:
@@ -275,7 +302,7 @@ class KnowledgeGraphConstruction:
                 """
                 LOAD CSV WITH HEADERS FROM 'file:///{}' AS row
                 {}
-                """.format(csv_path, merge_statement))
+                """.format(str(path)[len(self.config.input_dir)+1:], merge_statement))
         logger.info("Construction nodes [{}] is finished".format(label))
 
     def load_csv_to_relations(self, path: str):
@@ -296,8 +323,8 @@ class KnowledgeGraphConstruction:
         merge_statement = self._create_merge_relation_statement(path, label)
 
         # Get absolute path of the csv file
-        csv_path = pathlib.Path(ABSOLUTE_PATH, path)
-        csv_path = str(pathlib.PurePosixPath(csv_path)).replace(" ", "%20")
+        # csv_path = pathlib.Path(ABSOLUTE_PATH, path)
+        # csv_path = str(pathlib.PurePosixPath(csv_path)).replace(" ", "%20")
         
         # Load the CSV files to create relations in Neo4j Database
         with self.neo4j_connection.get_session() as session:
@@ -306,7 +333,7 @@ class KnowledgeGraphConstruction:
                 LOAD CSV WITH HEADERS FROM 'file:///{}' AS row
                 {}
                 {}
-                """.format(csv_path, match_statement, merge_statement))
+                """.format(str(path)[len(self.config.input_dir)+1:], match_statement, merge_statement))
         
         logger.info("Construction relations [{}] is finished".format(label))
 
@@ -494,39 +521,3 @@ class KnowledgeGraphIndexing:
         )
 
         return property
-
-class KnowledgeGraphRetrieval:
-    def __init__(self, config: KGRetrievalConfig, neo4j_connection: Neo4JConnection):
-        logger.info("Initialize knowledge graph retriever")
-        self.config = config
-        self.neo4j_connection = neo4j_connection
-        
-        self.embedding_model = get_emb_model(self.config.embedding_model)
-        self.rerank_model = get_rerank_model(self.config.rerank_model)
-
-    def query_relationship_from_node(self, query, n_query):
-        similar_relations = self.neo4j_connection.driver.execute_query(
-            """
-            CALL db.index.vector.queryNodes('JobTitleIndex', {}, {})
-            YIELD node, score
-            MATCH p=(node)-[r:offered_by]->(connectedNode)
-            RETURN elementId(r) AS id, r.job_qualification, r.job_responsibility, r.location
-            """.format(n_query, query)
-        )
-        
-        relations = []
-        for relation in similar_relations.records:
-            _id = relation.get("id")
-            text = "Job qualification: {}\nJob responsibility: {}\nJob location: {}".format(relation.get("r.job_qualification"), relation.get("r.job_responsibility"), relation.get("r.location"))
-
-            relations.append({"rel_id": _id, "text": text})
-        
-        return relations
-    
-    def rerank_retrieved_relationship(self, retrieved, query, top_k):
-        documents = [t["text"] for t in retrieved]
-        
-        results = self.rerank_model.rank(query, documents, top_k=top_k)
-        rel_ids = [retrieved[i["corpus_id"]]["rel_id"] for i in results]
-
-        return rel_ids

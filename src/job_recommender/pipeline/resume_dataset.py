@@ -6,7 +6,7 @@ import re
 from job_recommender.dataset.resume_dataset import PreprocessedResumeDataset
 from job_recommender.config.configuration import ResumeDatasetConfig
 from job_recommender.dataset.neo4j_connection import Neo4JConnection
-from job_recommender.pipeline.knowledge_graph import KnowledgeGraphRetrievalPipeline
+from job_recommender.pipeline.knowledge_graph_retrieval import KnowledgeGraphRetrievalPipeline
 from job_recommender import logger
 
 class PreprocessedResumeDatasetPipeline(PreprocessedResumeDataset):
