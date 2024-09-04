@@ -15,7 +15,7 @@
 </div>
 
 ## About The Project
-This project is a submission for Compfest: Artificial Intelligence Competition (AIC) 16.
+This project is a submission for Compfest: Artificial Intelligence Challenge (AIC) 16.
 
 This project is designed to be used as a resume reviewer. The approach involves retrieving a subgraph from a knowledge graph built from LinkedIn job postings and feeding it into a GNN. The features extracted from the subgraph are further processed and concatenated with the input embeddings from the query text. These concatenated features are then passed through the self-attention layer of Llama 3.1 8B to generate a resume review.
 
@@ -30,7 +30,7 @@ High level view of how the model generated a response can be seen in image below
 
 ## Dataset
 1. The knowledge graph was constructed from tabular data sourced from [Kaggle](https://www.kaggle.com/datasets/arshkon/linkedin-job-postings), which was originally scraped from job postings on LinkedIn.
-2. The resume and feedback dataset was synthetically generated using GPT-4.
+2. The resume and feedback dataset was synthetically generated using GPT-4o.
 
 ## Reference
 1. Bienstock, Daniel, et al. ”A note on the prize collecting traveling salesman problem.” Mathematical programming 59.1 (1993): 413-420. [[Paper](https://math.mit.edu/~goemans/PAPERS/BienstockGSW-1993-PrizeCollecting.pdf)]
