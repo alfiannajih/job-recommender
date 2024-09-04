@@ -1,7 +1,7 @@
 <br />
 <div align="center">
 <img src="./images/image.png" alt="Resume Icon" width="75">
-<h2 align="center">Resume Reviewer</h2>
+<h2 align="center">ReviceGraph</h2>
   <p align="center">
     An application for resume review, enhanced by Large Language Model (LLM) and knowledge graph.
     <br />
