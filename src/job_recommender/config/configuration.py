@@ -97,42 +97,6 @@ class SyntheticDatasetConfig:
     feedback_path: str
     feedback_model: str
 
-@dataclass(frozen=True)
-class HyperparametersConfig:
-    input_dir: str
-    #Training
-    seed: int
-    learning_rate: float
-    weight_decay: float
-    patience: int
-    batch_size: int
-    grad_steps: int
-
-    # Learning Rate Scheduler
-    num_epochs: int
-    warmup_epochs: int
-
-    # Evaluation
-    eval_batch_size: int
-
-    # LLM related
-    llm_model_path: str
-    llm_frozen: bool
-    llm_num_virtual_tokens: int
-    output_dir: str
-    max_txt_len: int
-    max_new_tokens: int
-
-    # GNN related
-    gnn_num_layers: int
-    gnn_in_dim: int
-    gnn_hidden_dim: int
-    gnn_num_heads: int
-    gnn_dropout: float
-
-    def dict(self):
-        return {k: str(v) for k, v in asdict(self).items()}
-
 class ConfigurationManager:
     """
     A class to manage configuration settings.
@@ -271,32 +235,3 @@ class ConfigurationManager:
         )
             
         return synthetic_dataset_config
-    
-    def get_hyperparameters(self) -> HyperparametersConfig:
-        hp = self.hp
-
-        hp = HyperparametersConfig(
-            input_dir=hp.input_dir,
-            seed=hp.seed,
-            learning_rate=hp.learning_rate,
-            weight_decay=hp.weight_decay,
-            patience=hp.patience,
-            batch_size=hp.batch_size,
-            grad_steps=hp.grad_steps,
-            num_epochs=hp.num_epochs,
-            warmup_epochs=hp.warmup_epochs,
-            eval_batch_size=hp.eval_batch_size,
-            llm_model_path=hp.llm_model_path,
-            llm_frozen=hp.llm_frozen,
-            llm_num_virtual_tokens=hp.llm_num_virtual_tokens,
-            output_dir=hp.output_dir,
-            max_txt_len=hp.max_txt_len,
-            max_new_tokens=hp.max_new_tokens,
-            gnn_num_layers=hp.gnn_num_layers,
-            gnn_in_dim=hp.gnn_in_dim,
-            gnn_hidden_dim=hp.gnn_hidden_dim,
-            gnn_num_heads=hp.gnn_num_heads,
-            gnn_dropout=hp.gnn_dropout,
-        )
-
-        return hp

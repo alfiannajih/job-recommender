@@ -29,6 +29,6 @@ synthetic_dataset:
   resume_path: dataset/synthetic_dataset/resumes
   resume_model: gpt-4o-mini
   #Synthetic feedback
-  feedback_prompt_system: "Evaluate the given resume against the given description to guide the user for his future career with the current job market. Provide a concise feedback summary in JSON format into the following sections:\nstrengths (Potential reasons for Acceptance)\nweaknesses (Potential reasons for Rejection)\nimprovement(Recommendation for Improvement)"
+  feedback_prompt_system: "Your are a professional in this industry and you need to annotate a given dataset. Evaluate the given resume against the given description to guide the user for his future career with the current job market that represented as textual graph. Provide a concise feedback into the following sections:\nstrengths (Potential reasons for for the candidate to be accepted)\nweaknesses (Potential reasons for the candidate to be rejected)\nimprovement(Recommendation for improvement on candidate's values)\nresume content (Feedback on resume content or writing content). The output should be in JSON format"
   feedback_path: dataset/synthetic_dataset/feedbacks
   feedback_model: gpt-4o-mini
