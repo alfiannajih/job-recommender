@@ -10,7 +10,7 @@
     ·
     <a href="https://huggingface.co/alfiannajih/g-retriever-resume-reviewer">Model Card</a>
     ·
-    <a href="#">Video Demo</a>
+    <a href="https://youtu.be/mASur7y9Brk">Video Demo</a>
   </p>
 </div>
 
