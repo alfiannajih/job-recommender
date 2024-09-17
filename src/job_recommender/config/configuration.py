@@ -107,7 +107,7 @@ class ConfigurationManager:
     def __init__(
             self,
             config_path: str = CONFIG_PATH,
-            hyperparams_path: str = HYPERPARAMS_PATH
+            # hyperparams_path: str = HYPERPARAMS_PATH
         ):
         """
         Initializes the instance with config.yaml.
@@ -116,7 +116,7 @@ class ConfigurationManager:
             config_path (str): Path of config.yaml
         """
         self.config = read_yaml(config_path)
-        self.hp = read_yaml(hyperparams_path)
+        # self.hp = read_yaml(hyperparams_path)
 
     def get_neo4j_connection_config(self) -> Neo4jConfig:
         """

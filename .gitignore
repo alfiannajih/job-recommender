@@ -168,3 +168,5 @@ mlruns/
 config/secrets.yaml
 *.json
 neo4j_db/
+dataset/nodes
+dataset/relations
