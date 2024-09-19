@@ -170,3 +170,4 @@ config/secrets.yaml
 neo4j_db/
 dataset/nodes
 dataset/relations
+chroma

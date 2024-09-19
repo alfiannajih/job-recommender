@@ -10,6 +10,7 @@ from job_recommender.pipeline.knowledge_graph import (
     KnowledgeGraphConstructionPipeline,
     KnowledgeGraphIndexingPipeline,
     PrepareRawDatasetPipeline,
+    TriplesExtractionPipeline
 )
 from job_recommender.pipeline.knowledge_graph_retrieval import KnowledgeGraphRetrievalPipeline
 from job_recommender.pipeline.resume_dataset import PreprocessedResumeDatasetPipeline
@@ -29,12 +30,12 @@ def main(args):
         raw_dataset_config = config.get_raw_dataset_config()
 
         raw_dataset_pipeline = PrepareRawDatasetPipeline(raw_dataset_config)
-        raw_dataset_pipeline.download_raw_dataset()
+        # raw_dataset_pipeline.download_raw_dataset()
         
         if not os.path.exists(os.path.join(raw_dataset_config.preprocessed_path, "nodes")):
             os.makedirs(os.path.join(raw_dataset_config.preprocessed_path, "nodes"))
 
-        raw_dataset_pipeline.node_preprocess_pipeline()
+        # raw_dataset_pipeline.node_preprocess_pipeline()
         
         if not os.path.exists(os.path.join(raw_dataset_config.preprocessed_path, "relations")):
             os.makedirs(os.path.join(raw_dataset_config.preprocessed_path, "relations"))
@@ -42,11 +43,20 @@ def main(args):
         raw_dataset_pipeline.relation_preprocess_pipeline()
         stage += 1
 
+    # if args.extract_triples_from_description:
+    #     logger.info("-------Stage {}: Extract Triples from Job Description-------".format(stage))
+    #     extraction_config = config.get_raw_dataset_config()
+
+    #     triple_extraction_pipeline = TriplesExtractionPipeline(extraction_config)
+    #     triple_extraction_pipeline.update_node_pipeline()
+
+    #     stage += 1
+
     if args.construct_kg:
         logger.info("-------Stage {}: Constructing Knowledge Graph-------".format(stage))
         kg_construct_config = config.get_kg_construct_config()
         
-        kg_construct_pipeline = KnowledgeGraphConstructionPipeline(kg_construct_config, neo4j_connection)
+        kg_construct_pipeline = KnowledgeGraphConstructionPipeline(kg_construct_config, neo4j_connection, local_import=True)
         kg_construct_pipeline.knowledge_graph_construction_pipeline()
         stage += 1
     
@@ -73,6 +83,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--preprocess_raw_dataset", action="store_true", help="")
+    parser.add_argument("--extract_triples_from_description", action="store_true", help="")
     parser.add_argument("--construct_kg", action="store_true", help="")
     parser.add_argument("--index_kg", action="store_true", help="")
     parser.add_argument("--preprocess_resume_dataset", action="store_true", help="")

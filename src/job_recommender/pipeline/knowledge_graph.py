@@ -2,6 +2,7 @@ import pathlib
 import pandas as pd
 import os
 import kaggle
+from tqdm import tqdm
 
 from job_recommender.config.configuration import (
     KGConstructConfig,
@@ -14,7 +15,8 @@ from job_recommender.utils.dataset import list_csv_files
 from job_recommender.dataset.knowledge_graph import (
     KnowledgeGraphConstruction,
     KnowledgeGraphIndexing,
-    PrepareRawDataset
+    PrepareRawDataset,
+    TriplesExtraction
 )
 
 class PrepareRawDatasetPipeline(PrepareRawDataset):
@@ -30,7 +32,7 @@ class PrepareRawDatasetPipeline(PrepareRawDataset):
 
     def node_job_title_pipeline(self):
         posting_df = pd.read_csv(self.posting_path, usecols=[0, 2, 3, 6, 7], index_col=0)
-        self.process_node_job_title(posting_df, 50)
+        self.process_node_job_title(posting_df, 0.95)
     
     def node_company_pipeline(self):
         company_df = pd.read_csv(self.companies_profile_path, usecols=[0, 1, 3, 4, 5, 6], index_col=0)[["name"]]
@@ -103,6 +105,44 @@ class PrepareRawDatasetPipeline(PrepareRawDataset):
         self.rel_company_speciality_pipeline()
         self.rel_company_size_pipeline()
 
+class TriplesExtractionPipeline(TriplesExtraction):
+    def __init__(self, config):
+        TriplesExtraction.__init__(self, config)
+
+    def update_node_pipeline(self):
+        # Get job description
+        desc_path = os.path.join(self.config.preprocessed_path, "relations/offered_by.csv")
+        desc_df = pd.read_csv(desc_path, index_col=0, usecols=[0, 2])
+
+        # Get job title
+        job_path = os.path.join(self.config.preprocessed_path, "nodes/JobTitle.csv")
+        job_df = pd.read_csv(job_path, index_col=0)
+
+        id2job = job_df["main_prop"].to_dict()
+
+        # Extract_ triples iteratively
+        for i in tqdm(range(len(desc_df))):
+            desc = desc_df.iloc[i]
+            job_title = id2job[desc.name]
+
+            triples = self.extract_triples(job_title, desc.description)
+            
+            # Cluster each element to its list
+            relation_lists = {relation: {node: [] for node in self.head_nodes} for relation in self.relations}
+
+            for t in triples:
+                triple = t["triple"]
+                
+                head = triple["head"]
+                relation = triple["relation"]
+                relation_lists[relation["type"]][head["type"]].append(head["name"])
+            
+            for rel in relation_lists:
+                node_lists = relation_lists[rel]
+                for node in node_lists:
+                    self.update_file(node, node_lists[node], rel, desc.name)
+
+
 class KnowledgeGraphConstructionPipeline(KnowledgeGraphConstruction):
     """
     A class to run the pipeline for constructing knowledge graph into neo4j database.
@@ -123,9 +163,10 @@ class KnowledgeGraphConstructionPipeline(KnowledgeGraphConstruction):
     def __init__(
             self,
             config: KGConstructConfig,
-            neo4j_connection: Neo4JConnection
+            neo4j_connection: Neo4JConnection,
+            local_import: bool
         ):
-        KnowledgeGraphConstruction.__init__(self, config, neo4j_connection)
+        KnowledgeGraphConstruction.__init__(self, config, neo4j_connection, local_import)
 
     def node_construction_pipeline(self):
         """
