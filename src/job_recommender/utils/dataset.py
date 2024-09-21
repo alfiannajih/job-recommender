@@ -13,11 +13,11 @@ def get_csv_header(path):
         
     return headers
 
-def get_label_from_path(path):
-    _, label = os.path.split(path)
-    label = label.replace(".csv", "")
+def get_file_name_from_path(path):
+    _, file_name = os.path.split(path)
+    file_name = file_name.replace(".csv", "")
 
-    return label
+    return file_name
 
 def list_csv_files(path):
     files = os.listdir(path)

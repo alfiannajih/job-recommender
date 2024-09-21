@@ -9,9 +9,9 @@ from job_recommender import logger
 from job_recommender.pipeline.knowledge_graph import (
     KnowledgeGraphConstructionPipeline,
     KnowledgeGraphIndexingPipeline,
-    PrepareRawDatasetPipeline,
-    TriplesExtractionPipeline
+    PrepareRawDatasetPipeline
 )
+from job_recommender.pipeline.named_entity_recognition import EntityRecognitionPipeline
 from job_recommender.pipeline.knowledge_graph_retrieval import KnowledgeGraphRetrievalPipeline
 from job_recommender.pipeline.resume_dataset import PreprocessedResumeDatasetPipeline
 from job_recommender.config.configuration import ConfigurationManager
@@ -43,14 +43,12 @@ def main(args):
         raw_dataset_pipeline.relation_preprocess_pipeline()
         stage += 1
 
-    # if args.extract_triples_from_description:
-    #     logger.info("-------Stage {}: Extract Triples from Job Description-------".format(stage))
-    #     extraction_config = config.get_raw_dataset_config()
+    if args.recognize_entity_from_job_desc:
+        logger.info("-------Stage {}: Named Entity Recognition from Job Descriptoin-------".format(stage))
+        ner_config = config.get_ner_config()
 
-    #     triple_extraction_pipeline = TriplesExtractionPipeline(extraction_config)
-    #     triple_extraction_pipeline.update_node_pipeline()
-
-    #     stage += 1
+        ner_pipeline = EntityRecognitionPipeline(ner_config)
+        ner_pipeline.extract_entity_pipeline()
 
     if args.construct_kg:
         logger.info("-------Stage {}: Constructing Knowledge Graph-------".format(stage))
@@ -83,7 +81,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--preprocess_raw_dataset", action="store_true", help="")
-    parser.add_argument("--extract_triples_from_description", action="store_true", help="")
+    parser.add_argument("--recognize_entity_from_job_desc", action="store_true", help="")
     parser.add_argument("--construct_kg", action="store_true", help="")
     parser.add_argument("--index_kg", action="store_true", help="")
     parser.add_argument("--preprocess_resume_dataset", action="store_true", help="")

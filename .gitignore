@@ -171,3 +171,4 @@ neo4j_db/
 dataset/nodes
 dataset/relations
 chroma
+ner_model/
