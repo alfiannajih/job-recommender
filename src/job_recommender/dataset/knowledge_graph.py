@@ -2,9 +2,6 @@ import pathlib
 import os
 import pandas as pd
 import json
-from pydantic import BaseModel
-from typing import List
-from groq import Groq
 import chromadb
 import chromadb.utils.embedding_functions as embedding_functions
 from sklearn.metrics.pairwise import cosine_similarity

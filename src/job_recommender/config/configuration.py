@@ -172,7 +172,8 @@ class ConfigurationManager:
 
         raw_dataset_config = RawDatasetConfig(
             raw_path=config.raw_path,
-            preprocessed_path=config.preprocessed_path
+            preprocessed_path=config.preprocessed_path,
+            similar_keywords=config.similar_keywords
         )
 
         return raw_dataset_config

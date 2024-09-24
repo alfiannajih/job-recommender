@@ -35,7 +35,7 @@ def main(args):
         if not os.path.exists(os.path.join(raw_dataset_config.preprocessed_path, "nodes")):
             os.makedirs(os.path.join(raw_dataset_config.preprocessed_path, "nodes"))
 
-        # raw_dataset_pipeline.node_preprocess_pipeline()
+        raw_dataset_pipeline.node_preprocess_pipeline()
         
         if not os.path.exists(os.path.join(raw_dataset_config.preprocessed_path, "relations")):
             os.makedirs(os.path.join(raw_dataset_config.preprocessed_path, "relations"))

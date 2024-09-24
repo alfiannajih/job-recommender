@@ -1,10 +1,18 @@
 import csv
 import os
 import torch
+from nltk.tokenize import word_tokenize  
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+import string
+from textblob import TextBlob
 import numpy as np
 from pcst_fast import pcst_fast
 from torch_geometric.data.data import Data
 from torch_geometric.data import Batch
+
+lemmatizer = WordNetLemmatizer()
+translator = str.maketrans(string.punctuation, ' '*len(string.punctuation))
 
 def get_csv_header(path):
     with open(path, "r") as f:
@@ -27,7 +35,37 @@ def list_csv_files(path):
 def count_csv_rows(path):
     with open(path, encoding="utf8") as f:
         return sum(1 for line in f)
+
+def nltk_process(text):
+    # Lowercase
+    text = text.lower()
     
+    # Remove punctuation
+    text = text.translate(translator)
+
+    # Correct spelling
+    # text = TextBlob(text)
+    # text = str(text.correct())
+
+    # Tokenize and Lematize
+    tokenized = word_tokenize(text)
+    
+    tokenized_lemma = []
+    for token in tokenized:
+        if len(token) == 1:
+            continue
+        
+        tokenized_lemma.append(lemmatizer.lemmatize(token))
+
+    # Filter stopword
+    filtered_sentence = []
+    nltk_stop_words = set(stopwords.words("english"))
+    for w in tokenized_lemma:
+        if w not in nltk_stop_words:
+            filtered_sentence.append(w)
+
+    return " ".join(filtered_sentence)
+
 def textualize_property(property):
     return "\n".join(["{}: {}".format(k, v) for k, v in property.items()])
 

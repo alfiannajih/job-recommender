@@ -3,6 +3,7 @@ import os
 import pandas as pd
 
 from job_recommender.config.configuration import NerConfig
+from job_recommender.utils.dataset import nltk_process
 
 class EntityRecognition:
     def __init__(
@@ -20,7 +21,9 @@ class EntityRecognition:
         ents = {label: [] for label in self.config.labels}
 
         for ent in doc.ents:
-            ents[ent.label_].append(ent.text)
+            normalized_ent = nltk_process(ent.text)
+            if normalized_ent:
+                ents[ent.label_].append(normalized_ent)
         
         return ents # {label1: [], label2: [], ...}
 
