@@ -172,6 +172,18 @@ class Neo4JConnection:
 
         return relations
 
+    def get_required_by(self, head_ids):
+        relation_ids = self.driver.execute_query(
+            """
+            MATCH ()-[r]->(h)
+            WHERE elementId(h) IN {}
+            RETURN DISTINCT elementId(r) AS id LIMIT 50
+            """.format(head_ids)
+        )
+        relations = [relation.value() for relation in relation_ids.records]
+
+        return relations
+
     def get_node_label_from_relation(self, relation):
         node_result = self.driver.execute_query(
             """
