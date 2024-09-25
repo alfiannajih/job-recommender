@@ -1,6 +1,6 @@
 outs:
-- md5: b312c8a02b8945329f0da5f18ac96197.dir
-  size: 1519467
-  nfiles: 12
+- md5: f1bf61436f02fc13a554e953085be46c.dir
+  size: 1588179
+  nfiles: 20
   hash: md5
   path: job_posting
