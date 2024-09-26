@@ -219,14 +219,32 @@ class KnowledgeGraphIndexingPipeline(KnowledgeGraphIndexing):
     def single_relation_label_indexing(self, session, relation_label):
         self.neo4j_connection.delete_vector_index(relation_label)
         relation_keys = self.neo4j_connection.get_relation_keys(relation_label)
-        head, tail = self.neo4j_connection.get_node_label_from_relation(relation_label)
-        textualized_relation = "{}.{}.{}".format(head, relation_label, tail)
-
-        if relation_keys == []:
-            self._relation_indexing_no_property(session, relation_label, textualized_relation)
+        node_label = self.neo4j_connection.get_node_label_from_relation(relation_label)
         
+        if len(node_label) > 2:
+            heads = node_label[:-1]
+            tail = node_label[-1]
+
+            for head in heads:
+                textualized_relation = "{}.{}.{}".format(head, relation_label, tail)
+                
+                if relation_keys == []:
+                    self._relation_indexing_no_property(session, relation_label, textualized_relation)
+                
+                else:
+                    self._relation_indexing_with_property(session, relation_label, relation_keys)
+
         else:
-            self._relation_indexing_with_property(session, relation_label, relation_keys)
+            head, tail = node_label
+        
+            # head, tail = 
+            textualized_relation = "{}.{}.{}".format(head, relation_label, tail)
+
+            if relation_keys == []:
+                self._relation_indexing_no_property(session, relation_label, textualized_relation)
+            
+            else:
+                self._relation_indexing_with_property(session, relation_label, relation_keys)
 
         self.neo4j_connection.create_vector_index_relations(relation_label, self.embedding_model.get_sentence_embedding_dimension())
 
@@ -278,4 +296,4 @@ class KnowledgeGraphIndexingPipeline(KnowledgeGraphIndexing):
     
     def knowledge_graph_indexing_pipeline(self):
         self.nodes_indexing()
-        self.relations_indexing()
+        # self.relations_indexing()

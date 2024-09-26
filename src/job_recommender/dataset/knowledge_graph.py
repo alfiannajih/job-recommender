@@ -422,7 +422,7 @@ class KnowledgeGraphConstruction:
             csv_path = pathlib.Path(ABSOLUTE_PATH, path)
             csv_path = str(pathlib.PurePosixPath(csv_path)).replace(" ", "%20")
         else:
-            csv_path = str(path)[len(self.config.input_dir)+1:]
+            csv_path = str(path)[7:]
 
         # Load the CSV files to create nodes in Neo4j Database
         with self.neo4j_connection.get_session() as session:
@@ -455,7 +455,7 @@ class KnowledgeGraphConstruction:
             csv_path = pathlib.Path(ABSOLUTE_PATH, path)
             csv_path = str(pathlib.PurePosixPath(csv_path)).replace(" ", "%20")
         else:
-            csv_path = str(path)[len(self.config.input_dir)+1:]
+            csv_path = str(path)[7:]
         
         # Load the CSV files to create relations in Neo4j Database
         with self.neo4j_connection.get_session() as session:

@@ -30,7 +30,7 @@ def main(args):
         raw_dataset_config = config.get_raw_dataset_config()
 
         raw_dataset_pipeline = PrepareRawDatasetPipeline(raw_dataset_config)
-        # raw_dataset_pipeline.download_raw_dataset()
+        raw_dataset_pipeline.download_raw_dataset()
         
         if not os.path.exists(os.path.join(raw_dataset_config.preprocessed_path, "nodes")):
             os.makedirs(os.path.join(raw_dataset_config.preprocessed_path, "nodes"))
@@ -54,7 +54,7 @@ def main(args):
         logger.info("-------Stage {}: Constructing Knowledge Graph-------".format(stage))
         kg_construct_config = config.get_kg_construct_config()
         
-        kg_construct_pipeline = KnowledgeGraphConstructionPipeline(kg_construct_config, neo4j_connection, local_import=True)
+        kg_construct_pipeline = KnowledgeGraphConstructionPipeline(kg_construct_config, neo4j_connection, local_import=False)
         kg_construct_pipeline.knowledge_graph_construction_pipeline()
         stage += 1
     

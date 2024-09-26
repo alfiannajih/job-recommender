@@ -15,7 +15,7 @@ kg_retrieval:
   rerank_model: BAAI/bge-reranker-large #cross-encoder/ms-marco-MiniLM-L-12-v2
 
 ner:
-  ner_model_path: en_ner_job
+  ner_model_path: en_ner_job_lg
   preprocessed_path: dataset/job_posting
   labels: ["TechnicalSkill", "ConceptSkill", "SoftSkill", "Education"]
 
