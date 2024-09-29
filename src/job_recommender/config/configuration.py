@@ -77,6 +77,7 @@ class KGRetrievalConfig(Neo4jConfig):
 class RawDatasetConfig:
     raw_path: str
     preprocessed_path: str
+    similar_keywords: list
 
 @dataclass(frozen=True)
 class ResumeDatasetConfig:
@@ -97,35 +98,22 @@ class SyntheticDatasetConfig:
     feedback_path: str
     feedback_model: str
 
-class ConfigurationManager:
-    """
-    A class to manage configuration settings.
+@dataclass(frozen=True)
+class NerConfig:
+    ner_model_path: str
+    preprocessed_path: str
+    labels: list
 
-    Attributes:
-        config (dict): The configuration settings loaded from a YAML file.
-    """
+class ConfigurationManager:
     def __init__(
             self,
             config_path: str = CONFIG_PATH,
-            hyperparams_path: str = HYPERPARAMS_PATH
+            # hyperparams_path: str = HYPERPARAMS_PATH
         ):
-        """
-        Initializes the instance with config.yaml.
-        
-        Args:
-            config_path (str): Path of config.yaml
-        """
         self.config = read_yaml(config_path)
-        self.hp = read_yaml(hyperparams_path)
+        # self.hp = read_yaml(hyperparams_path)
 
     def get_neo4j_connection_config(self) -> Neo4jConfig:
-        """
-        Retrieves the configuration of Neo4j connection.
-
-        Returns:
-            Neo4jConfig: An instance of Neo4jConfig with the connection details.
-        """
-
         connection_config = Neo4jConfig(
             neo4j_uri=os.getenv("NEO4J_URI"),
             neo4j_user=os.getenv("NEO4J_USER"),
@@ -136,12 +124,6 @@ class ConfigurationManager:
         return connection_config
     
     def get_kg_construct_config(self) -> KGConstructConfig:
-        """
-        Retrieves the KGConstructConfig for constructing knowledge graphs.
-
-        Returns:
-            KGConstructConfig: An instance of KGConstructConfig with the specified configuration.
-        """
         config = self.config.kg_construct
         connection_config = self.get_neo4j_connection_config()
 
@@ -156,12 +138,6 @@ class ConfigurationManager:
         return kg_construct_config
     
     def get_kg_indexing_config(self) -> KGIndexingConfig:
-        """
-        Retrieves the KGIndexingConfig for indexing nodes and relationships of knowledge graphs.
-
-        Returns:
-            KGIndexingConfig: An instance of KGIndexingConfig with the specified configuration.
-        """
         config = self.config.kg_indexing
         connection_config = self.get_neo4j_connection_config()
 
@@ -177,12 +153,6 @@ class ConfigurationManager:
         return kg_indexing_config
     
     def get_kg_retrieval_config(self) -> KGRetrievalConfig:
-        """
-        Retrieves the KGRetrievalConfig for indexing nodes and relationships of knowledge graphs.
-
-        Returns:
-            KGRetrievalConfig: An instance of KGRetrievalConfig with the specified configuration.
-        """
         config = self.config.kg_retrieval
         connection_config = self.get_neo4j_connection_config()
 
@@ -202,7 +172,8 @@ class ConfigurationManager:
 
         raw_dataset_config = RawDatasetConfig(
             raw_path=config.raw_path,
-            preprocessed_path=config.preprocessed_path
+            preprocessed_path=config.preprocessed_path,
+            similar_keywords=config.similar_keywords
         )
 
         return raw_dataset_config
@@ -235,3 +206,8 @@ class ConfigurationManager:
         )
             
         return synthetic_dataset_config
+    
+    def get_ner_config(self):
+        config = self.config.ner
+
+        return config

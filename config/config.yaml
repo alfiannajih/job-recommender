@@ -1,9 +1,10 @@
 raw_dataset:
   raw_path: raw_dataset
-  preprocessed_path: dataset
+  preprocessed_path: dataset/job_posting
+  similar_keywords: ["engineer", "developer", "software engineer", "software developer", "analyst", "data", "architect", "finance", "web developer", "project", "artificial intelligence", "machine learning", "actuary", "quantitative analyst", "backend engineer", "frontend engineer"]
 
 kg_construct:
-  input_dir: dataset
+  input_dir: dataset/job_posting
 
 kg_indexing:
   batch_size: 32
@@ -12,6 +13,11 @@ kg_indexing:
 kg_retrieval:
   embedding_model: thenlper/gte-base #sentence-transformers/all-MiniLM-L6-v2
   rerank_model: BAAI/bge-reranker-large #cross-encoder/ms-marco-MiniLM-L-12-v2
+
+ner:
+  ner_model_path: en_ner_job_lg
+  preprocessed_path: dataset/job_posting
+  labels: ["TechnicalSkill", "ConceptSkill", "SoftSkill", "Education"]
 
 resume_dataset:
   input_dir: dataset/synthetic_dataset

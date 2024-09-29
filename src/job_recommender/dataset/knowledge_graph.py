@@ -2,6 +2,11 @@ import pathlib
 import os
 import pandas as pd
 import json
+import chromadb
+import chromadb.utils.embedding_functions as embedding_functions
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+import re
 
 from job_recommender.config.configuration import (
     KGConstructConfig,
@@ -12,7 +17,7 @@ from job_recommender import logger
 from job_recommender.dataset.neo4j_connection import Neo4JConnection
 from job_recommender.utils.dataset import (
     count_csv_rows,
-    get_label_from_path,
+    get_file_name_from_path,
     get_csv_header,
     textualize_property
 )
@@ -24,6 +29,8 @@ from job_recommender.utils.common import (
 # Absolute path of the project folder
 ABSOLUTE_PATH = pathlib.Path(".").resolve()
 
+chroma_client = chromadb.PersistentClient("./chroma")
+
 class PrepareRawDataset:
     def __init__(
             self,
@@ -31,6 +38,16 @@ class PrepareRawDataset:
         ):
         self.config = config
         
+        jinaai_ef = embedding_functions.JinaEmbeddingFunction(
+            api_key=os.getenv("JINA_API_KEY"),
+            model_name="jina-embeddings-v2-base-en"
+        )
+        self.collection = chroma_client.get_or_create_collection(
+            name="revice_graph",
+            embedding_function=jinaai_ef,
+            metadata={"hnsw:space": "cosine"}
+        )
+
         self.posting_path = os.path.join(self.config.raw_path, "postings.csv")
         self.job_industries_path = os.path.join(self.config.raw_path, "jobs/job_industries.csv")
 
@@ -40,19 +57,96 @@ class PrepareRawDataset:
 
         self.mappings_industries_path = os.path.join(self.config.raw_path, "mappings/industries.csv")
 
-    def process_node_job_title(self, posting_df, threshold=50):
-        # Filter job title
-        job_filter = (posting_df["title"].value_counts() > threshold).to_dict()
-        job_mask = posting_df["title"].apply(lambda x: job_filter[x])
+    def process_node_job_title(self, posting_df, threshold=0.95):
+        # Retrieve job title and its ids based on the listed keywords
+        similar = self.collection.query(
+            query_texts=self.config.similar_keywords,
+            n_results=30
+        )
 
-        # Lower case job title
-        job_nodes = posting_df[job_mask][["title"]]
-        job_nodes["title"] = job_nodes["title"].str.lower()
-        job_nodes = job_nodes.drop_duplicates().reset_index(drop=True).rename({"title": "main_prop"}, axis=1)
+        # Filter job title that have distance smaller than threshold
+        valid_job = []
+        valid_ids = []
 
-        # Save job title nodes and ids
+        for i, distances in enumerate(similar["distances"]):
+            for j, dist in enumerate(distances):
+                if dist < 0.175:
+                    valid_job.append(similar["documents"][i][j])
+                    valid_ids.append(similar["ids"][i][j])
+        
+        # Get number of jobs in dict form
+        valid_posting = posting_df["title"].value_counts()[list(set(valid_job))]
+        job2num = valid_posting.to_dict()
+
+        # Get embeddings for each valid job title
+        embeddings = self.collection.get(
+            ids=list(set(valid_ids)),
+            include=["embeddings", "documents"]
+        )
+
+        # Create distance matrix to represents similarity between job
+        emb = np.array(embeddings["embeddings"])
+        docs = np.array(embeddings["documents"])
+        similarity = cosine_similarity(emb, emb)
+
+        # Mask out diagonal elements in distance matrix
+        mask = np.ones(similarity.shape, dtype=bool)
+        np.fill_diagonal(mask, 0)
+        masked_similarity = similarity * mask
+
+        # Construct job title and its ids
+        map_title = {}
+
+        while masked_similarity.sum() != 0:
+            # Get position of highest similarity in distance matrix
+            highest_score_ids = np.unravel_index(
+                np.argmax(masked_similarity),
+                masked_similarity.shape
+            )
+            
+            # Get similarity job along its row based on defined threshold
+            similarity_ids = np.where(similarity[highest_score_ids[0]] > threshold)[0]
+            similarity_title = docs[similarity_ids]
+
+            # Calculate average weights of each similar job based on the number of jobs
+            counts = 0
+            weights = np.zeros_like(similarity_ids)
+
+            for i, title in enumerate(similarity_title):
+                counts += job2num[title]
+
+                weights[i] = job2num[title]
+
+            # Mean embedding values with calculated average weights
+            pool_emb = (emb[similarity_ids] * weights.reshape(-1, 1)/counts).mean(axis=0)
+
+            # Get main title based on the pooling
+            master_title = self.collection.query(
+                query_embeddings=pool_emb.tolist(),
+                n_results=1
+            )["documents"][0][0]
+
+            # Mask out value along row and columns
+            masked_similarity[:, similarity_ids] = 0
+            masked_similarity[similarity_ids, :] = 0
+
+            # Clean main title
+            master_title = re.sub(" +", " ", master_title).lower().strip()
+            map_title[master_title] = [title for title in similarity_title]
+            # threshold *= 0.995
+        
+        job_nodes = pd.DataFrame({"main_prop": list(map_title)})
+
         job_nodes_path = os.path.join(self.config.preprocessed_path, "nodes/JobTitle.csv")
         job_nodes.to_csv(job_nodes_path, index_label="prop_id")
+
+        job_disambiguation = {}
+        for master, jobs in map_title.items():
+            for job in jobs:
+                job_disambiguation[job] = master
+        
+        with open(os.path.join(self.config.preprocessed_path, "nodes/JobTitleDisambiguation.json"), "w") as fp:
+            json.dump(job_disambiguation, fp)
 
     def process_node_industry(self, job_industry_df, company_industry_df, threshold=20):
         # Filter industry for company
@@ -112,10 +206,14 @@ class PrepareRawDataset:
         # Create id: job map
         job_map = {v: k for k, v in job_nodes["main_prop"].to_dict().items()}
         
+        # Job disambiguation map
+        with open(os.path.join(self.config.preprocessed_path, "nodes/JobTitleDisambiguation.json")) as fp:
+            job_disambiguation = json.load(fp)
+
         # Create relations
         job_comp_rel = posting_df.copy()
         
-        job_comp_rel["title"] = job_comp_rel["title"].apply(lambda x: job_map.get(x.lower(), None))
+        job_comp_rel["title"] = job_comp_rel["title"].apply(lambda x: job_map.get(job_disambiguation.get(x, None), None))
         job_comp_rel["company_id"] = job_comp_rel["company_id"].apply(lambda x: x if x in company_nodes.index else None)
         job_comp_rel = job_comp_rel.dropna(subset=["title", "company_id"]).astype({"title": int, "company_id": int})
         job_comp_rel = job_comp_rel.rename({"title": "h_id", "company_id": "t_id"}, axis=1)[["h_id", "location", "description", "t_id"]]
@@ -127,7 +225,7 @@ class PrepareRawDataset:
         unique_rows = job_comp_rel[~mask]
         selective_duplicate_rows = duplicated_rows.groupby(["h_id", "t_id"]).head(5)
         job_comp_rel = pd.concat([unique_rows, selective_duplicate_rows])
-
+        
         # Save job-company relations
         job_comp_path = os.path.join(self.config.preprocessed_path, "relations/offered_by.csv")
         job_comp_rel.to_csv(job_comp_path)
@@ -240,8 +338,10 @@ class KnowledgeGraphConstruction:
     def __init__(
             self,
             config: KGConstructConfig,
-            neo4j_connection: Neo4JConnection
+            neo4j_connection: Neo4JConnection,
+            local_import: bool
         ):
+        self.local_import = local_import
         self.config = config
         self.neo4j_connection = neo4j_connection
 
@@ -256,23 +356,48 @@ class KnowledgeGraphConstruction:
             relations_map = {
                 "categorized_as": {
                     "head": "Company",
-                    "tail": "Size"
+                    "tail": "Size",
+                    "label": "categorized_as"
                 }, 
                 "offered_by": {
                     "head": "JobTitle",
-                    "tail": "Company"
+                    "tail": "Company",
+                    "label": "offered_by"
                 },
                 "specialized_in": {
                     "head": "Company",
-                    "tail": "Speciality"
+                    "tail": "Speciality",
+                    "label": "specialized_in"
                 },
                 "belongs_to_industry": {
                     "head": "JobTitle",
-                    "tail": "Industry"
+                    "tail": "Industry",
+                    "label": "belongs_to_industry"
                 },
                 "part_of_industry": {
                     "head": "Company",
-                    "tail": "Industry"
+                    "tail": "Industry",
+                    "label": "part_of_industry"
+                },
+                "required_by_ConceptSkill": {
+                    "head": "ConceptSkill",
+                    "tail": "JobTitle",
+                    "label": "required_by"
+                },
+                "required_by_Education": {
+                    "head": "Education",
+                    "tail": "JobTitle",
+                    "label": "required_by"
+                },
+                "required_by_SoftSkill": {
+                    "head": "SoftSkill",
+                    "tail": "JobTitle",
+                    "label": "required_by"
+                },
+                "required_by_TechnicalSkill": {
+                    "head": "TechnicalSkill",
+                    "tail": "JobTitle",
+                    "label": "required_by"
                 }
             }
             json.dump(relations_map, fp)
@@ -285,7 +410,7 @@ class KnowledgeGraphConstruction:
             path (str): Path of the nodes CSV file.
         """
         # Get node label from the filepath
-        label = get_label_from_path(path)
+        label = get_file_name_from_path(path)
         logger.info("Constructing node: [{}]".format(label))
         logger.info("{}.csv contains {} rows".format(label, count_csv_rows(path)))
 
@@ -293,8 +418,11 @@ class KnowledgeGraphConstruction:
         merge_statement = self._create_merge_node_statement(path, label)
         
         # Get absolute path of the csv file
-        # csv_path = pathlib.Path(ABSOLUTE_PATH, path)
-        # csv_path = str(pathlib.PurePosixPath(csv_path)).replace(" ", "%20")
+        if self.local_import:
+            csv_path = pathlib.Path(ABSOLUTE_PATH, path)
+            csv_path = str(pathlib.PurePosixPath(csv_path)).replace(" ", "%20")
+        else:
+            csv_path = str(path)[7:]
 
         # Load the CSV files to create nodes in Neo4j Database
         with self.neo4j_connection.get_session() as session:
@@ -302,7 +430,7 @@ class KnowledgeGraphConstruction:
                 """
                 LOAD CSV WITH HEADERS FROM 'file:///{}' AS row
                 {}
-                """.format(str(path)[len(self.config.input_dir)+1:], merge_statement))
+                """.format(csv_path, merge_statement))
         logger.info("Construction nodes [{}] is finished".format(label))
 
     def load_csv_to_relations(self, path: str):
@@ -313,18 +441,21 @@ class KnowledgeGraphConstruction:
             path (str): Path of the relations CSV file.
         """
         # Get relation label and relation map from the filepath
-        label = get_label_from_path(path)
+        file_name = get_file_name_from_path(path)
         relations_map = self._get_relations_map()
-        logger.info("Constructing relation: [{}]".format(label))
-        logger.info("{}.csv contains {} rows".format(label, count_csv_rows(path)))
+        logger.info("Constructing relation: [{}]".format(file_name))
+        logger.info("{}.csv contains {} rows".format(file_name, count_csv_rows(path)))
 
         # Create MATCH and MERGE statement to construct relations in Neo4j
-        match_statement = self._create_match_statement(relations_map[label])
-        merge_statement = self._create_merge_relation_statement(path, label)
+        match_statement = self._create_match_statement(relations_map[file_name])
+        merge_statement = self._create_merge_relation_statement(path, relations_map[file_name]["label"])
 
         # Get absolute path of the csv file
-        # csv_path = pathlib.Path(ABSOLUTE_PATH, path)
-        # csv_path = str(pathlib.PurePosixPath(csv_path)).replace(" ", "%20")
+        if self.local_import:
+            csv_path = pathlib.Path(ABSOLUTE_PATH, path)
+            csv_path = str(pathlib.PurePosixPath(csv_path)).replace(" ", "%20")
+        else:
+            csv_path = str(path)[7:]
         
         # Load the CSV files to create relations in Neo4j Database
         with self.neo4j_connection.get_session() as session:
@@ -333,9 +464,9 @@ class KnowledgeGraphConstruction:
                 LOAD CSV WITH HEADERS FROM 'file:///{}' AS row
                 {}
                 {}
-                """.format(str(path)[len(self.config.input_dir)+1:], match_statement, merge_statement))
+                """.format(csv_path, match_statement, merge_statement))
         
-        logger.info("Construction relations [{}] is finished".format(label))
+        logger.info("Construction relations [{}] is finished".format(file_name))
 
     def _get_relations_map(self) -> dict:
         """
@@ -431,7 +562,7 @@ class KnowledgeGraphConstruction:
             .format(rel_label, sub_prop)
         
         return statement
-    
+
 class KnowledgeGraphIndexing:
     """
     A class for indexing the property of nodes and relations in Neo4j database.

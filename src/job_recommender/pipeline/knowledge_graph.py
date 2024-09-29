@@ -2,6 +2,7 @@ import pathlib
 import pandas as pd
 import os
 import kaggle
+from tqdm import tqdm
 
 from job_recommender.config.configuration import (
     KGConstructConfig,
@@ -30,7 +31,7 @@ class PrepareRawDatasetPipeline(PrepareRawDataset):
 
     def node_job_title_pipeline(self):
         posting_df = pd.read_csv(self.posting_path, usecols=[0, 2, 3, 6, 7], index_col=0)
-        self.process_node_job_title(posting_df, 50)
+        self.process_node_job_title(posting_df, 0.95)
     
     def node_company_pipeline(self):
         company_df = pd.read_csv(self.companies_profile_path, usecols=[0, 1, 3, 4, 5, 6], index_col=0)[["name"]]
@@ -103,6 +104,7 @@ class PrepareRawDatasetPipeline(PrepareRawDataset):
         self.rel_company_speciality_pipeline()
         self.rel_company_size_pipeline()
 
+
 class KnowledgeGraphConstructionPipeline(KnowledgeGraphConstruction):
     """
     A class to run the pipeline for constructing knowledge graph into neo4j database.
@@ -123,9 +125,10 @@ class KnowledgeGraphConstructionPipeline(KnowledgeGraphConstruction):
     def __init__(
             self,
             config: KGConstructConfig,
-            neo4j_connection: Neo4JConnection
+            neo4j_connection: Neo4JConnection,
+            local_import: bool
         ):
-        KnowledgeGraphConstruction.__init__(self, config, neo4j_connection)
+        KnowledgeGraphConstruction.__init__(self, config, neo4j_connection, local_import)
 
     def node_construction_pipeline(self):
         """
@@ -164,7 +167,7 @@ class KnowledgeGraphConstructionPipeline(KnowledgeGraphConstruction):
         logger.info("Constructing knowledge graph from {}".format(self.config.input_dir))
         self.node_construction_pipeline()
         self.relation_construction_pipeline()
-        logger.info("Knowledge graph construction is finisher")
+        logger.info("Knowledge graph construction is finished")
 
 class KnowledgeGraphIndexingPipeline(KnowledgeGraphIndexing):
     def __init__(
@@ -216,14 +219,32 @@ class KnowledgeGraphIndexingPipeline(KnowledgeGraphIndexing):
     def single_relation_label_indexing(self, session, relation_label):
         self.neo4j_connection.delete_vector_index(relation_label)
         relation_keys = self.neo4j_connection.get_relation_keys(relation_label)
-        head, tail = self.neo4j_connection.get_node_label_from_relation(relation_label)
-        textualized_relation = "{}.{}.{}".format(head, relation_label, tail)
-
-        if relation_keys == []:
-            self._relation_indexing_no_property(session, relation_label, textualized_relation)
+        node_label = self.neo4j_connection.get_node_label_from_relation(relation_label)
         
+        if len(node_label) > 2:
+            heads = node_label[:-1]
+            tail = node_label[-1]
+
+            for head in heads:
+                textualized_relation = "{}.{}.{}".format(head, relation_label, tail)
+                
+                if relation_keys == []:
+                    self._relation_indexing_no_property(session, relation_label, textualized_relation)
+                
+                else:
+                    self._relation_indexing_with_property(session, relation_label, relation_keys)
+
         else:
-            self._relation_indexing_with_property(session, relation_label, relation_keys)
+            head, tail = node_label
+        
+            # head, tail = 
+            textualized_relation = "{}.{}.{}".format(head, relation_label, tail)
+
+            if relation_keys == []:
+                self._relation_indexing_no_property(session, relation_label, textualized_relation)
+            
+            else:
+                self._relation_indexing_with_property(session, relation_label, relation_keys)
 
         self.neo4j_connection.create_vector_index_relations(relation_label, self.embedding_model.get_sentence_embedding_dimension())
 
@@ -275,4 +296,4 @@ class KnowledgeGraphIndexingPipeline(KnowledgeGraphIndexing):
     
     def knowledge_graph_indexing_pipeline(self):
         self.nodes_indexing()
-        self.relations_indexing()
+        # self.relations_indexing()

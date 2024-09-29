@@ -15,3 +15,7 @@ sentencepiece==0.2.0
 mlflow==2.15.1
 dvc[s3]==3.53.0
 kaggle==1.6.17
+chromadb==0.5.7
+spacy==3.7.6
+nltk==3.9.1
+textblob==0.18.0.post0

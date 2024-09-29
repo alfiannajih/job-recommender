@@ -29,7 +29,9 @@ class KnowledgeGraphRetrievalPipeline(KnowledgeGraphRetrieval):
         head_ids = self.neo4j_connection.get_head_node(relation_ids)
         head_connection = self.neo4j_connection.get_tail_connection_from_head(head_ids)
 
-        return relation_ids + tail_connection + head_connection, torch.tensor(query_emb)
+        required_ids = self.neo4j_connection.get_required_by(head_ids)
+
+        return required_ids + relation_ids + tail_connection + head_connection, torch.tensor(query_emb)
     
     def build_graph(self, triples, query_emb):
         with self.neo4j_connection.get_session() as session:

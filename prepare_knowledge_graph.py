@@ -9,8 +9,9 @@ from job_recommender import logger
 from job_recommender.pipeline.knowledge_graph import (
     KnowledgeGraphConstructionPipeline,
     KnowledgeGraphIndexingPipeline,
-    PrepareRawDatasetPipeline,
+    PrepareRawDatasetPipeline
 )
+from job_recommender.pipeline.named_entity_recognition import EntityRecognitionPipeline
 from job_recommender.pipeline.knowledge_graph_retrieval import KnowledgeGraphRetrievalPipeline
 from job_recommender.pipeline.resume_dataset import PreprocessedResumeDatasetPipeline
 from job_recommender.config.configuration import ConfigurationManager
@@ -42,11 +43,18 @@ def main(args):
         raw_dataset_pipeline.relation_preprocess_pipeline()
         stage += 1
 
+    if args.recognize_entity_from_job_desc:
+        logger.info("-------Stage {}: Named Entity Recognition from Job Descriptoin-------".format(stage))
+        ner_config = config.get_ner_config()
+
+        ner_pipeline = EntityRecognitionPipeline(ner_config)
+        ner_pipeline.extract_entity_pipeline()
+
     if args.construct_kg:
         logger.info("-------Stage {}: Constructing Knowledge Graph-------".format(stage))
         kg_construct_config = config.get_kg_construct_config()
         
-        kg_construct_pipeline = KnowledgeGraphConstructionPipeline(kg_construct_config, neo4j_connection)
+        kg_construct_pipeline = KnowledgeGraphConstructionPipeline(kg_construct_config, neo4j_connection, local_import=False)
         kg_construct_pipeline.knowledge_graph_construction_pipeline()
         stage += 1
     
@@ -73,6 +81,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--preprocess_raw_dataset", action="store_true", help="")
+    parser.add_argument("--recognize_entity_from_job_desc", action="store_true", help="")
     parser.add_argument("--construct_kg", action="store_true", help="")
     parser.add_argument("--index_kg", action="store_true", help="")
     parser.add_argument("--preprocess_resume_dataset", action="store_true", help="")
