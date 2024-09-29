@@ -15,15 +15,15 @@ services:
       - ./neo4j_db/import:/var/lib/neo4j/import
       - ./neo4j_db/plugins:/plugins
       
-  prepare-kg:
-    container_name: prepare_kg
-    build: .
-    environment:
-      - KAGGLE_USERNAME=${KAGGLE_USERNAME}
-      - KAGGLE_KEY=${KAGGLE_KEY}
-      - NEO4J_URI=${NEO4J_URI}
-      - NEO4J_USER=${NEO4J_USER}
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
-      - NEO4J_DB=${NEO4J_DB}
-    volumes:
-      - ./neo4j_db/import:/app/dataset
+  # prepare-kg:
+  #   container_name: prepare_kg
+  #   build: .
+  #   environment:
+  #     - KAGGLE_USERNAME=${KAGGLE_USERNAME}
+  #     - KAGGLE_KEY=${KAGGLE_KEY}
+  #     - NEO4J_URI=${NEO4J_URI}
+  #     - NEO4J_USER=${NEO4J_USER}
+  #     - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+  #     - NEO4J_DB=${NEO4J_DB}
+  #   volumes:
+  #     - ./neo4j_db/import:/app/dataset
