@@ -1,6 +1,6 @@
 outs:
-- md5: cd0f97a638ece49262b4a154934aaf9e.dir
-  size: 308669431
-  nfiles: 6315
+- md5: 0f4540391701df7053fa49c41b82f9a1.dir
+  size: 148062466
+  nfiles: 2298
   hash: md5
   path: resume_dataset
