@@ -296,4 +296,4 @@ class KnowledgeGraphIndexingPipeline(KnowledgeGraphIndexing):
     
     def knowledge_graph_indexing_pipeline(self):
         self.nodes_indexing()
-        # self.relations_indexing()
+        self.relations_indexing()

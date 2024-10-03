@@ -28,7 +28,7 @@ class PreprocessedResumeDatasetPipeline(PreprocessedResumeDataset):
             
             for j, inputs in enumerate(json_files):
                 question = inputs["input"]
-                label = inputs["output"]
+                # label = inputs["output"]
 
                 word_split = ["\neducation\n", "\nexperience\n", "\nproject\n", "\nskills\n", "RESUME:\n","\nDESCRIPTION:\n"]
                 pattern = '|'.join(map(re.escape, word_split))
@@ -48,8 +48,8 @@ class PreprocessedResumeDatasetPipeline(PreprocessedResumeDataset):
                     fp.write(question)
 
                 # Write label
-                with open(os.path.join(output_dir, "label.txt"), "w") as fp:
-                    fp.write(label)
+                # with open(os.path.join(output_dir, "label.txt"), "w") as fp:
+                #     fp.write(label)
 
                 # Write textualized graph
                 with open(os.path.join(output_dir, "desc.txt"), "w") as fp:

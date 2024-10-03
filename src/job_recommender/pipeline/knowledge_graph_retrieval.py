@@ -67,7 +67,7 @@ class KnowledgeGraphRetrievalPipeline(KnowledgeGraphRetrieval):
                 edge_attr.append(rec.get("r_embedding"))
 
                 if rec.get("job_description") != None:
-                    textualized_prop = "{}\nJob Description: {}".format(rec.get("r_type"), rec.get("job_description"))
+                    textualized_prop = "{}\nJob Description: {}".format(rec.get("r_type"), rec.get("job_description")[:1024])
                 else:
                     textualized_prop = rec.get("r_type")
 
