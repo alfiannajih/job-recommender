@@ -8,10 +8,10 @@ kg_construct:
 
 kg_indexing:
   batch_size: 32
-  embedding_model: thenlper/gte-base #sentence-transformers/all-MiniLM-L6-v2
+  embedding_model: sentence-transformers/all-mpnet-base-v2 #thenlper/gte-base #sentence-transformers/all-MiniLM-L6-v2
 
 kg_retrieval:
-  embedding_model: thenlper/gte-base #sentence-transformers/all-MiniLM-L6-v2
+  embedding_model: sentence-transformers/all-mpnet-base-v2 #thenlper/gte-base #sentence-transformers/all-MiniLM-L6-v2
   rerank_model: BAAI/bge-reranker-large #cross-encoder/ms-marco-MiniLM-L-12-v2
 
 ner:

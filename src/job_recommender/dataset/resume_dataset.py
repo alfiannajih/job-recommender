@@ -29,8 +29,17 @@ class PreprocessedResumeDataset:
         subgraph, textualized_graph = self.retriever.graph_retrieval_pipeline(
             resume=resume,
             desc=description,
-            top_emb=5,
-            top_rerank=150
+            node_labels=[
+                "ConceptSkillIndex",
+                "EducationIndex",
+                "IndustryIndex",
+                "JobTitleIndex",
+                "SoftSkillIndex",
+                "SpecialityIndex",
+                "TechnicalSkillIndex",
+                "SizeIndex"
+            ],
+            top_emb=20
         )
 
         return subgraph, textualized_graph

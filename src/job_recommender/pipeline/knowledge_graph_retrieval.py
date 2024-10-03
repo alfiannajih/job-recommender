@@ -1,6 +1,7 @@
 import pandas as pd
 import torch
 from torch_geometric.data.data import Data
+import numpy as np
 
 from job_recommender.utils.dataset import retrieval_via_pcst
 from job_recommender.config.configuration import KGRetrievalConfig
@@ -15,25 +16,48 @@ class KnowledgeGraphRetrievalPipeline(KnowledgeGraphRetrieval):
         ):
         KnowledgeGraphRetrieval.__init__(self, config, neo4j_connection)
 
-    def triples_retrieval(self, resume, desc, top_emb=5, top_rerank=100):
+    def triples_retrieval(self, resume, desc, node_labels, top_emb=20):
         query = resume + [desc]
-        query_emb = self.embedding_model.encode(query, show_progress_bar=False).mean(axis=0).tolist()
 
-        relations = self.query_relationship_from_node(query_emb, top_emb)
-        #relation_ids = self.rerank_retrieved_relationship(relations, desc, top_rerank)
-        relation_ids = [r["rel_id"] for r in relations]
+        query_emb = self.embedding_model.encode(query, show_progress_bar=False)
+        query_emb = np.average(query_emb, axis=0, weights=[3/20, 3/20, 3/20, 3/20, 2/5]).tolist()
 
-        tail_ids = self.neo4j_connection.get_tail_node(relation_ids)
-        tail_connection = self.neo4j_connection.get_tail_connection_from_head(tail_ids)
+        query_executions = []
+
+        for node_label in node_labels:
+            query_executions.append(
+                """
+                CALL db.index.vector.queryNodes('{}', {}, {})
+                YIELD node, score
+                MATCH (h)-[r]-()
+                WHERE h = node AND score > 0.7
+                RETURN elementId(r)
+                """.format(node_label, top_emb, query_emb)
+            )
+
+        full_query = "UNION".join(query_executions)
+        triples = self.neo4j_connection.driver.execute_query(full_query)
+
+        triples_id = [triple.values()[0] for triple in triples.records]
+
+        return triples_id, torch.tensor(query_emb)
+        # query_emb = self.embedding_model.encode(query, show_progress_bar=False).mean(axis=0).tolist()
+
+        # relations = self.query_relationship_from_node(query_emb, top_emb)
+        # #relation_ids = self.rerank_retrieved_relationship(relations, desc, top_rerank)
+        # relation_ids = [r["rel_id"] for r in relations]
+
+        # tail_ids = self.neo4j_connection.get_tail_node(relation_ids)
+        # tail_connection = self.neo4j_connection.get_tail_connection_from_head(tail_ids)
         
-        head_ids = self.neo4j_connection.get_head_node(relation_ids)
-        head_connection = self.neo4j_connection.get_tail_connection_from_head(head_ids)
+        # head_ids = self.neo4j_connection.get_head_node(relation_ids)
+        # head_connection = self.neo4j_connection.get_tail_connection_from_head(head_ids)
 
-        required_ids = self.neo4j_connection.get_required_by(head_ids)
+        # required_ids = self.neo4j_connection.get_required_by(head_ids)
 
-        return required_ids + relation_ids + tail_connection + head_connection, torch.tensor(query_emb)
+        # return required_ids + relation_ids + tail_connection + head_connection, torch.tensor(query_emb)
     
-    def build_graph(self, triples, query_emb):
+    def build_graph(self, triples, query_emb, topk, topk_e, cost_e):
         with self.neo4j_connection.get_session() as session:
             result = session.run(
                 """
@@ -91,7 +115,7 @@ class KnowledgeGraphRetrievalPipeline(KnowledgeGraphRetrieval):
             #nodes.to_csv("dataset/samples/sample_1/node.csv", index=False)
             #edges.to_csv("dataset/samples/sample_1/edge.csv", index=False)
             
-            subgraph, desc = retrieval_via_pcst(graph, query_emb, nodes, edges, topk=10, topk_e=3, cost_e=0.5)
+            subgraph, desc = retrieval_via_pcst(graph, query_emb, nodes, edges, topk=topk, topk_e=topk_e, cost_e=cost_e)
 
             return subgraph, desc
             #torch.save(subg, 'dataset/samples/sample_1/subg.pt')
@@ -99,9 +123,9 @@ class KnowledgeGraphRetrievalPipeline(KnowledgeGraphRetrieval):
             #with open('dataset/samples/sample_1/desc.txt', 'w') as f:
             #    f.write(desc)
     
-    def graph_retrieval_pipeline(self, resume, desc, top_emb, top_rerank):
-        triples, query_emb = self.triples_retrieval(resume, desc, top_emb, top_rerank)
-        subgraph, textualize_graph = self.build_graph(triples, query_emb)
+    def graph_retrieval_pipeline(self, resume, desc, node_labels, top_emb):
+        triples, query_emb = self.triples_retrieval(resume, desc, node_labels, top_emb)
+        subgraph, textualize_graph = self.build_graph(triples, query_emb, topk=15, topk_e=10, cost_e=0.8)
         
         return subgraph, textualize_graph
         #return graph, nodes, edges
