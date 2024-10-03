@@ -54,7 +54,7 @@ def main(args):
         logger.info("-------Stage {}: Constructing Knowledge Graph-------".format(stage))
         kg_construct_config = config.get_kg_construct_config()
         
-        kg_construct_pipeline = KnowledgeGraphConstructionPipeline(kg_construct_config, neo4j_connection, local_import=False)
+        kg_construct_pipeline = KnowledgeGraphConstructionPipeline(kg_construct_config, neo4j_connection, local_import=args.local_import)
         kg_construct_pipeline.knowledge_graph_construction_pipeline()
         stage += 1
     
@@ -83,6 +83,7 @@ if __name__ == "__main__":
     parser.add_argument("--preprocess_raw_dataset", action="store_true", help="")
     parser.add_argument("--recognize_entity_from_job_desc", action="store_true", help="")
     parser.add_argument("--construct_kg", action="store_true", help="")
+    parser.add_argument("--local_import", action="store_true", help="")
     parser.add_argument("--index_kg", action="store_true", help="")
     parser.add_argument("--preprocess_resume_dataset", action="store_true", help="")
 
