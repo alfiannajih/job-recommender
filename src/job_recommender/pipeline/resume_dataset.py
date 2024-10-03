@@ -2,6 +2,7 @@ import json
 import os
 import torch
 import re
+from tqdm import tqdm
 
 from job_recommender.dataset.resume_dataset import PreprocessedResumeDataset
 from job_recommender.config.configuration import ResumeDatasetConfig
@@ -26,7 +27,12 @@ class PreprocessedResumeDatasetPipeline(PreprocessedResumeDataset):
             with open(path, "r") as fp:
                 json_files = [json.loads(line.rstrip()) for line in fp]
             
-            for j, inputs in enumerate(json_files):
+            for j, inputs in enumerate(tqdm(json_files)):
+                output_dir = os.path.join(self.config.resume_dir, "resume_{}_{}".format(file, j))
+                
+                if os.path.exists(output_dir):
+                    continue
+                
                 question = inputs["input"]
                 # label = inputs["output"]
 
@@ -38,7 +44,7 @@ class PreprocessedResumeDatasetPipeline(PreprocessedResumeDataset):
                 desc = splitted[-1]
 
                 subgraph, textualized_graph = self.retrieve_graph(resume, desc)
-                output_dir = os.path.join(self.config.resume_dir, "resume_{}_{}".format(i, j))
+                # output_dir = os.path.join(self.config.resume_dir, "resume_{}_{}".format(file[:-6], j))
                 
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)

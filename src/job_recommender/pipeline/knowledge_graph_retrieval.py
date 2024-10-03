@@ -18,7 +18,7 @@ class KnowledgeGraphRetrievalPipeline(KnowledgeGraphRetrieval):
 
     def triples_retrieval(self, resume, desc, node_labels, top_emb=20):
         query = resume + [desc]
-
+        
         query_emb = self.embedding_model.encode(query, show_progress_bar=False)
         query_emb = np.average(query_emb, axis=0, weights=[3/20, 3/20, 3/20, 3/20, 2/5]).tolist()
 
